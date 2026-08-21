@@ -1,0 +1,61 @@
+[Message: Preloader] BepInEx 6.0.0-be.785 - SurvivalLog (2026/08/20 星期四 0:01:47)
+[Message: Preloader] Built from commit 6abdba47eeebe08552282e7a58ef0f4a9ab60b62
+[Info   :   BepInEx] System platform: Windows 10 64-bit
+[Info   :   BepInEx] Process bitness: 64-bit (x64)
+[Info   :   BepInEx] Running under Unity 6000.2.0a1
+[Info   :   BepInEx] Runtime version: 6.0.7
+[Info   :   BepInEx] Runtime information: .NET 6.0.7
+[Info   : Preloader] 0 patcher plugins loaded
+[Info   : Preloader] 0 assemblies discovered
+[Message:AssemblyPatcher] Executing 0 patch(es)
+[Message:   BepInEx] Chainloader initialized
+[Warning:Il2CppInterop] Class::Init signatures have been exhausted, using a substitute!
+[Info   :Il2CppInterop] Registered mono type Il2CppInterop.Runtime.DelegateSupport+Il2CppToMonoDelegateReference in il2cpp domain
+[Info   :   BepInEx] 1 plugin to load
+[Info   :   BepInEx] Loading [SurvivalLogMod 2.1.0]
+[Info   :SurvivalLogMod] [CheatGUI] 呼出热键: Insert, F6, F7, F8
+[Info   :SurvivalLogMod] [Harmony] 已应用 12/12 个兼容补丁
+[Info   :Il2CppInterop] Registered mono type SurvivalLogCheat.CheatGUI in il2cpp domain
+[Info   :SurvivalLogMod] === SurvivalLogCheat loaded ===
+[Message:   BepInEx] Chainloader startup complete
+[Info   :SurvivalLogMod] [CheatGUI] Start - 作弊面板将注入游戏网页
+[Info   :SurvivalLogMod] [记忆] 已读取上次保存的设置: E:\Program Files (x86)\Survival Log\BepInEx\config\SurvivalLogCheat.memory.json
+[Info   :SurvivalLogMod] [WebUiBridge] 心跳线程已启动
+[Info   :SurvivalLogMod] [WebUiBridge] 菜单页注入后将自动弹出面板
+[Info   :SurvivalLogMod] [WebView] Chromium target frame rate set to 60 FPS.
+[Info   :SurvivalLogMod] [WebUiBridge] 场景切换 Main -> System（面板保持打开）
+[Info   :SurvivalLogMod] [WebUiBridge] 已保存游戏原始鼠标区域回调
+[Error  :SurvivalLogMod] SubscribeWebMessages: Parameter type at 0 has mismatched native type pointers; types: System.Object != System.Object
+[Info   :SurvivalLogMod] [WebUiBridge] 已定位或重新绑定游戏 WebView
+[Info   :SurvivalLogMod] [WebUiBridge] 已注入作弊面板脚本（含拼音库）
+[Info   :SurvivalLogMod] [WebUiBridge] 场景切换 System -> Loading（面板保持打开）
+[Error  :SurvivalLogMod] SubscribeWebMessages: Parameter type at 0 has mismatched native type pointers; types: System.Object != System.Object
+[Info   :SurvivalLogMod] [WebUiBridge] 已定位或重新绑定游戏 WebView
+[Info   :SurvivalLogMod] [WebUiBridge] 已保存游戏原始鼠标区域回调
+[Info   :SurvivalLogMod] [WebUiBridge] 场景切换 Loading -> BattleRoot（面板保持打开）
+[Error  :SurvivalLogMod] SubscribeWebMessages: Parameter type at 0 has mismatched native type pointers; types: System.Object != System.Object
+[Info   :SurvivalLogMod] [WebUiBridge] 已定位或重新绑定游戏 WebView
+[Info   :SurvivalLogMod] [WebUiBridge] 已保存游戏原始鼠标区域回调
+[Info   :SurvivalLogMod] [记忆] 已自动应用上次的开关设置
+[Info   :SurvivalLogMod] [记忆] 已恢复背包尺寸和最大负重
+[Info   :SurvivalLogMod] [探测]
+World: OK
+ItemManager: OK
+AgentManager: OK
+PlayerId: 12884905785
+LeadingRole: OK
+UserComponent: OK
+AttributeComponent: OK
+Gold: 10001000
+Health(hidden): 60
+Vitality(HUD life): 60
+Stamina: 80
+Satiety: 85
+Morale: 60
+
+[Info   :SurvivalLogMod] [ItemCatalog] 顶级分类分布: 1=食物  2=药品  3=书籍  4=电器  5=日用品  6=工具  8=包裹  9=材料  10=种子  11=肥料  12=陷阱  13=燃料  14=背包家具  15=花  16=投掷物
+[Info   :SurvivalLogMod] [ItemCatalog] 目录刷新完成，共 2849 种物品，15 个顶级分类
+[Info   :SurvivalLogMod] [WebUiBridge] 面板已关闭，鼠标输入层已恢复
+[Info   :SurvivalLogMod] [WebUiBridge] 已保存游戏原始鼠标区域回调
+[Info   :SurvivalLogMod] [记忆] 已保存设置: E:\Program Files (x86)\Survival Log\BepInEx\config\SurvivalLogCheat.memory.json
+[Info   :SurvivalLogMod] [记忆] 已恢复背包尺寸和最大负重

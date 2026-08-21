@@ -1,0 +1,22 @@
+{
+  "LockHp": false,
+  "LockStamina": false,
+  "LockSatiety": false,
+  "LockMorale": false,
+  "LockHpValue": 60,
+  "LockStaminaValue": 80,
+  "LockSatietyValue": 85,
+  "LockMoraleValue": 60,
+  "MaxHealthValue": 100,
+  "MaxStaminaValue": 100,
+  "MaxSatietyValue": 100,
+  "MaxMoraleValue": 100,
+  "InfiniteFood": false,
+  "NoExploreExposure": false,
+  "TimeFrozen": true,
+  "MoveSpeedMultiplier": 1,
+  "BagColumns": 10,
+  "BagRows": 9,
+  "BagMaxBurden": 9600,
+  "ActiveTab": "about"
+}

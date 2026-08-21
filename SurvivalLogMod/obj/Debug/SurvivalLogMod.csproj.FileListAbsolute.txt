@@ -1,0 +1,10 @@
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\obj\Debug\SurvivalLogMod.csproj.AssemblyReference.cache
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\obj\Debug\SurvivalLogMod.GeneratedMSBuildEditorConfig.editorconfig
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\obj\Debug\SurvivalLogMod.csproj.CoreCompileInputs.cache
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\bin\SurvivalLogMod.deps.json
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\bin\SurvivalLogMod.dll
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\bin\SurvivalLogMod.pdb
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\obj\Debug\SurvivalLogMod.dll
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\obj\Debug\refint\SurvivalLogMod.dll
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\obj\Debug\SurvivalLogMod.pdb
+D:\Vsyuanma\SurvivalLog\SurvivalLogMod\obj\Debug\ref\SurvivalLogMod.dll
