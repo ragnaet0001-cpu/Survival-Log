@@ -4,62 +4,13 @@
 // ---------- 杂项（mod resources） ----------
 void TabMisc()
 {
-            // ---------- 杂项（mod 生存规划/熟练度/关系/图鉴成就/暴露/生存点/移动热键） ----------
+            // ---------- 杂项（mod 熟练度/关系/图鉴成就/暴露/生存点/移动热键） ----------
             ImGui::Text((const char *)u8"杂项");
             ImGui::Separator();
             if (!SLSDK_Ready())
             {
                 ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), (const char *)u8"SDK 未就绪（等待游戏加载）...");
                 return;
-            }
-
-            // 生存规划
-            ImGui::Text((const char *)u8"生存规划（已激活）");
-            static SLSurvivalPlanView plans[32];
-            int np = SLSDK_GetSurvivalPlans(plans, 32);
-            for (int i = 0; i < np && i < 32; ++i)
-            {
-                ImGui::Text((const char *)u8"  #%d %s (Lv%d)", plans[i].TalentId, plans[i].Name, plans[i].Level);
-                char b1[32];
-                snprintf(b1, sizeof(b1), (const char *)u8"移除##p%d", i);
-                ImGui::SameLine();
-                if (ImGui::SmallButton(b1))
-                    SLSDK_RemoveSurvivalPlan(plans[i].TalentId);
-            }
-            static bool pcat_loaded = false;
-            static std::vector<SLSurvivalPlanView> pcat;
-            if (!pcat_loaded)
-            {
-                int npc = SLSDK_GetSurvivalPlanCatalog(nullptr, 0);
-                if (npc > 0)
-                {
-                    pcat.resize((size_t)npc);
-                    SLSDK_GetSurvivalPlanCatalog(pcat.data(), npc);
-                    pcat_loaded = true;
-                }
-            }
-            ImGui::Text((const char *)u8"生存规划目录（点击添加）");
-            if (ImGui::Button((const char *)u8"刷新规划目录"))
-            {
-                int npc = SLSDK_GetSurvivalPlanCatalog(nullptr, 0);
-                pcat.resize(npc > 0 ? (size_t)npc : 0);
-                if (npc > 0)
-                    SLSDK_GetSurvivalPlanCatalog(pcat.data(), npc);
-                pcat_loaded = npc > 0;
-            }
-            if (pcat_loaded && !pcat.empty())
-            {
-                if (ImGui::BeginChild((const char *)u8"##plancat", ImVec2(0, 110), true))
-                {
-                    for (size_t i = 0; i < pcat.size(); ++i)
-                    {
-                        char label[256];
-                        snprintf(label, sizeof(label), (const char *)u8"#%d %s %s##pc%d", pcat[i].TalentId, pcat[i].Name, pcat[i].Active ? (const char *)u8"[激活]" : (const char *)u8"[未激活]", (int)i);
-                        if (ImGui::Selectable(label, false))
-                            SLSDK_AddSurvivalPlan(pcat[i].TalentId);
-                    }
-                }
-                ImGui::EndChild();
             }
 
             // 关系 / 图鉴 / 成就
@@ -99,8 +50,7 @@ void TabMisc()
                 static bool no_exp = false;
                 if (ImGui::Checkbox((const char *)u8"防暴露(不增长)", &no_exp))
                     SLSDK_SetNoExploreExposure(no_exp);
-                if (no_exp)
-                    SLSDK_ApplyNoExploreExposure(); // 每帧清零
+                // 每帧清零由 PanelUpdateLocks 统一执行（读 SDK 全局开关，换页也生效）
             }
             else
             {

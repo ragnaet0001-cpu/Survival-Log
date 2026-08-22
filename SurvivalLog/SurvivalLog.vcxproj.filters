@@ -34,6 +34,9 @@
     <Filter Include="SDK">
       <UniqueIdentifier>{A1B2C3D4-0007-4E86-B755-1C66EC2781AF}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Menu\Panel\Tabs">
+      <UniqueIdentifier>{b6c73de6-a703-4c47-8310-3f145e5f6c40}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -93,6 +96,9 @@
     <ClInclude Include="SDK\SurvivalLogSDK.h">
       <Filter>SDK</Filter>
     </ClInclude>
+    <ClInclude Include="SDK\offsets.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -130,6 +136,33 @@
     </ClCompile>
     <ClCompile Include="SDK\SurvivalLogSDK.cpp">
       <Filter>SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabProficiency.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabAbout.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabAttributes.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabBag.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabBuffs.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabFacilities.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabItems.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabMisc.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabPrepare.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

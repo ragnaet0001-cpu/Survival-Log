@@ -14,11 +14,11 @@ Survival Log（生存日志）游戏的修改器，双实现：
 | 准备阶段 | 金币显示/增加、游戏时间（天/时刻/总秒/倒计时）、延长倒计时、冻结时间 |
 | 物品 | 物品目录搜索（按名称/ID）、添加物品、数量设置 |
 | 背包 | 背包物品列表、删除/复制、设置数量、背包尺寸修改、最大负重 |
-| 杂项 | 生存规划（激活/目录/添加/移除）、邻居好感、图鉴/成就解锁、暴露度、生存点、锁定移动、禁用游戏热键、无限食物保质期 |
+| 杂项 | 邻居好感、图鉴/成就解锁、暴露度、生存点、锁定移动、禁用游戏热键、无限食物保质期 |
 | 属性 | 饱腹/心态/精力/生命/Health 当前值与上限、属性锁（每帧补满）、移速倍率 |
 | 熟练度 | 6 类熟练度查看、加经验、加等级 |
-| 设施 | 门窗耐久查看与设置（门=8 窗=9） |
-| Buff | 当前 Buff 列表/移除、Buff 目录搜索/添加、清空全部、移除负面 |
+| 设施 | 全部 10 种槽位类型（小/中/大/挂壁/中央/桌上/床/门/窗/塔防装置）耐久查看与设置、每行锁定（勾选后每帧保持耐久） |
+| Buff | 子 tab：当前效果 / 生存规划；当前效果 = Buff 列表/移除 + Buff 目录搜索/添加 + 清空全部/移除负面；生存规划 = 已激活列表/移除 + 目录（全量天赋 548 条）搜索/选中/手动添加 |
 | 关于 | 关闭菜单 |
 
 > 菜单结构对齐 mod 前端（资源/生存/其他分组），无透视/自瞄等 mod 之外的功能。
@@ -29,10 +29,10 @@ Survival Log（生存日志）游戏的修改器，双实现：
 
 ```
 SurvivalLog/
-├── DXhook/          D3D11 Hook + ImGui 渲染层（Present 每帧调用 RenderPanel）
+├── DXhook/          D3D11 Hook + ImGui 渲染层（Present 每帧无条件调 PanelFrameUpdate；show_window 为 true 时再调 RenderPanel）
 ├── Hook/            Detours Hook 层（HookManager：背包尺寸/无限食物/时间冻结等 20 个 hook）
 ├── Menu/Panel/      菜单面板
-│   ├── panel.cpp    框架（窗口/侧边栏/分发，~150 行）
+│   ├── panel.cpp    框架（窗口/侧边栏/分发 + PanelFrameUpdate 每帧系统逻辑 + PanelUpdateLocks 锁定生效）
 │   └── Tabs/        9 个 tab 独立文件（TabXxx.cpp，对齐原神项目 Gui 风格）
 └── SDK/             il2cpp 运行时封装
     ├── SurvivalLogSDK.h/.cpp  按名解析类/方法 + 全部功能 API
@@ -75,7 +75,7 @@ ReduxUISystem.Instance → reduxStoreLayer(+0x38) → stateTree(+0x40) → State
 
 1. 运行游戏（IL2CPP 单机版），等待进入主界面（HotUpdate.dll 热更程序集加载）
 2. 将 `x64\Release\SurvivalLog.dll` 注入游戏进程
-3. 菜单自动显示；「关于」页可关闭菜单
+3. 菜单默认显示，按 Home 键显示/隐藏菜单；「关于」页的「关闭菜单」按钮也可隐藏
 4. SDK 未就绪时面板会提示"等待游戏加载"，自动每 2 秒重试；就绪后自动安装 hook
 
 > 注入工具可自行选择（如 Cheat Engine / x64dbg 等，本仓库不包含注入器）。

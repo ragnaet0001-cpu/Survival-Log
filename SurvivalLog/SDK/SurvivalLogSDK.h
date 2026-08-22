@@ -513,6 +513,8 @@ int32_t SLSDK_GetSurvivalPlans(SLSurvivalPlanView* outItems, int32_t maxItems);
 // 生存规划目录（mod GetSurvivalPlanCatalog：_Config_DailyRandom_Dict + RandomGroup 展开）
 int32_t SLSDK_GetSurvivalPlanCatalog(SLSurvivalPlanView* outItems, int32_t maxItems);
 bool SLSDK_AddSurvivalPlan(int32_t talentId);
+// 上次 AddSurvivalPlan/RemoveSurvivalPlan 失败原因（成功返回 nullptr/空串）
+const char* SLSDK_GetLastPlanError();
 bool SLSDK_RemoveSurvivalPlan(int32_t talentId);
 
 // ---------- 熟练度（mod GameApi.Proficiency 系列） ----------
@@ -582,6 +584,8 @@ bool SLSDK_InstallFoodDisplayHooks();
 bool SLSDK_SetHomeDurability(int32_t slotTypeId, int32_t value, int32_t* updatedOut);
 // 门窗耐久概要（mod GetHomeDurabilitySummary 同款）
 bool SLSDK_GetHomeDurabilitySummary(int32_t slotTypeId, int32_t* count, int32_t* minCurrent, int32_t* maxDurability);
+// 设施耐久锁（任意槽位类型，每帧把耐久保持到 value；对齐属性锁模式，面板每帧调用）
+void SLSDK_ApplyDurabilityLockSlot(int32_t slotTypeId, int32_t value);
 
 // ---------- 无限食物（mod SetInfiniteFoodShelfLife） ----------
 // 开关 + 返回受影响物品数（遍历 items.Cache，Life>0 计数；真正无限由 hook 层实现）

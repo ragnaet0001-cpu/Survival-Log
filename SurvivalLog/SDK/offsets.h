@@ -109,6 +109,8 @@ inline size_t OFF_LA_currentWorldState = 0x38; // _currentWorldState（灾变阶
 inline size_t OFF_CM_ItemDict = 0x1F8;      // ConfigManager._Config_Item_Dict（Dictionary<int, Config_Item>）
 inline size_t OFF_CM_BuffDict = 0x68;       // ConfigManager._Config_Buff_Dict（Dictionary<int, Config_Buff>）
 inline size_t OFF_CM_DailyRandomDict = 0xD0; // ConfigManager._Config_DailyRandom_Dict（Dictionary<int, Config_DailyRandom>）
+inline size_t OFF_CM_RandomGroupDict = 0x288; // ConfigManager._Config_RandomGroup_Dict（Dictionary<int, Config_RandomGroup>）
+inline size_t OFF_CM_TalentDict = 0x2F0;      // ConfigManager._Config_Talent_Dict（Dictionary<int, Config_Talent>）
 
 // ---------- ItemManager ----------
 inline size_t OFF_IM_Cache = 0x30;          // <Cache>k__BackingField（Dictionary<long, ItemData> 全部物品）

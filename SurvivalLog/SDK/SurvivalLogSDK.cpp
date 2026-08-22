@@ -296,6 +296,24 @@ static Attr_o* DictFindAttr(void* dict, int32_t key, Il2CppClass* attrKlass)
     return nullptr;
 }
 
+// 字典按 int key 找 value（Dictionary<int, T>，entry 24 字节；key 在 entry+8，value 在 entry+16）
+static void* DictFindByIntKey(void* dict, int32_t key)
+{
+    if (!dict)
+        return nullptr;
+    Dictionary_o* d = (Dictionary_o*)dict;
+    if (!d->_entries || d->_count <= 0 || d->_count > 100000)
+        return nullptr;
+    uint8_t* entries = (uint8_t*)d->_entries + OFF_ARRAY_DATA;
+    for (int32_t i = 0; i < d->_count; i++)
+    {
+        uint8_t* entry = entries + (size_t)i * 24;
+        if (*(int32_t*)(entry + 8) == key)
+            return *(void**)(entry + 16);
+    }
+    return nullptr;
+}
+
 // ---------- IL2CPP List<T> 辅助 ----------
 // List 字段布局（il2cpp.h System_Collections_Generic_List_*__Fields）：
 //   +0x10 _items(数组引用), +0x18 _size(int32) = Count, +0x1C _version
@@ -986,6 +1004,8 @@ namespace
             OFF_CM_ItemDict = ResolveFieldOffset(g_klassConfigManager, "_Config_Item_Dict", OFF_CM_ItemDict);
             OFF_CM_BuffDict = ResolveFieldOffset(g_klassConfigManager, "_Config_Buff_Dict", OFF_CM_BuffDict);
             OFF_CM_DailyRandomDict = ResolveFieldOffset(g_klassConfigManager, "_Config_DailyRandom_Dict", OFF_CM_DailyRandomDict);
+            OFF_CM_RandomGroupDict = ResolveFieldOffset(g_klassConfigManager, "_Config_RandomGroup_Dict", OFF_CM_RandomGroupDict);
+            OFF_CM_TalentDict = ResolveFieldOffset(g_klassConfigManager, "_Config_Talent_Dict", OFF_CM_TalentDict);
 
             g_modItemsInited = true;
             LOG_INFO("Mod SDK batch1 ready (ItemManager/ConfigManager/Attr full)");
@@ -1986,6 +2006,10 @@ namespace
         return nullptr;
     }
 
+    // 生存规划操作失败原因诊断（AddSurvivalPlan/RemoveSurvivalPlan 失败时填充）
+    static char g_planError[256] = {};
+    static const char* g_planStep = "";
+
     static bool ModBatch2Init()
     {
         if (g_modBatch2Inited)
@@ -2253,6 +2277,14 @@ static Config_Talent_o* FindTalentConfig(int32_t talentId)
         Il2CppObject* cm = GetConfigManager();
         if (!cm)
             return nullptr;
+        // 字典直读优先（_Config_Talent_Dict；免方法调用，Get_Config_Talent 运行时调用不稳）
+        void* tld = *(void**)((uint8_t*)cm + OFF_CM_TalentDict);
+        if (tld)
+        {
+            Config_Talent_o* cfg = (Config_Talent_o*)DictFindByIntKey(tld, talentId);
+            if (cfg)
+                return cfg;
+        }
         if (g_miConfigGetTalent)
         {
             Config_Talent_o* cfg = (Config_Talent_o*)InvokeIntArg(g_miConfigGetTalent, cm, talentId);
@@ -2673,106 +2705,50 @@ int32_t SLSDK_GetSurvivalPlanCatalog(SLSurvivalPlanView* outItems, int32_t maxIt
         SurvivalPlanningComponent_o* sp = (SurvivalPlanningComponent_o*)GetComp(g_klassSurvivalPlanning);
         if (!cm)
             return 0;
-        void* dict = *(void**)((uint8_t*)cm + OFF_CM_DailyRandomDict); // _Config_DailyRandom_Dict
+        // 全量天赋字典直读（和 Buff 目录遍历 _Config_Buff_Dict 对称；mod 目录语义 = 列出全部可添加生存规划）
+        void* dict = *(void**)((uint8_t*)cm + OFF_CM_TalentDict); // ConfigManager._Config_Talent_Dict
         if (!dict)
             return 0;
         Dictionary_o* d = (Dictionary_o*)dict;
         if (!d->_entries || d->_count <= 0 || d->_count > 100000)
             return 0;
         uint8_t* entries = (uint8_t*)d->_entries + OFF_ARRAY_DATA;
-        for (int32_t i = 0; i < d->_count && written < maxItems; i++)
+        for (int32_t i = 0; i < d->_count; i++)
         {
             uint8_t* entry = entries + (size_t)i * 24;
+            int32_t tid = *(int32_t*)(entry + 8); // 字典 key = talent id（AddSurvivalPlan 同参数）
             void* val = *(void**)(entry + 16);
-            if (!val)
+            if (!val || tid <= 0)
                 continue;
-            Config_DailyRandom_o* dr = (Config_DailyRandom_o*)val;
-            // SpecifiedPlanID 直接收集
-            if (dr->SpecifiedPlanID)
+            Config_Talent_o* cfg = (Config_Talent_o*)val;
+            // 填充必须包在 outItems 检查内（计数调用 nullptr,0 不能写 outItems；对齐 GetBuffConfigs）
+            if (outItems && written < maxItems)
             {
-                size_t n = ListGetCount(dr->SpecifiedPlanID);
-                for (size_t j = 0; j < n && written < maxItems; j++)
-                {
-                    int32_t tid = IntListGet(dr->SpecifiedPlanID, j, -1);
-                    if (tid <= 0)
-                        continue;
-                    Config_Talent_o* cfg = FindTalentConfig(tid);
-                    if (!cfg)
-                        continue;
-                    SLSurvivalPlanView& v = outItems[written];
-                    v.TalentId = tid;
-                    v.Level = cfg->Lv;
-                    v.Active = sp && sp->SaveCache ? PlanIdInSaveCache(tid) : false;
-                    char tmp[512];
-                    ILStringToUtf8(cfg->Name_Local, tmp, sizeof(tmp));
-                    if (!tmp[0])
-                        ILStringToUtf8(cfg->Name, tmp, sizeof(tmp));
-                    if (!tmp[0])
-                        snprintf(tmp, sizeof(tmp), "生存规划 #%d", tid);
-                    size_t n2 = strlen(tmp);
-                    if (n2 >= sizeof(v.Name))
-                        n2 = sizeof(v.Name) - 1;
-                    memcpy(v.Name, tmp, n2);
-                    v.Name[n2] = 0;
-                    ILStringToUtf8(cfg->Dec_Local, tmp, sizeof(tmp));
-                    if (!tmp[0])
-                        ILStringToUtf8(cfg->Dec, tmp, sizeof(tmp));
-                    n2 = strlen(tmp);
-                    if (n2 >= sizeof(v.Description))
-                        n2 = sizeof(v.Description) - 1;
-                    memcpy(v.Description, tmp, n2);
-                    v.Description[n2] = 0;
-                    written++;
-                }
+                SLSurvivalPlanView& v = outItems[written];
+                v.TalentId = tid;
+                v.Level = cfg->Lv;
+                v.Active = sp && sp->SaveCache ? PlanIdInSaveCache(tid) : false;
+                char tmp[512];
+                ILStringToUtf8(cfg->Name_Local, tmp, sizeof(tmp));
+                if (!tmp[0])
+                    ILStringToUtf8(cfg->Name, tmp, sizeof(tmp));
+                if (!tmp[0])
+                    snprintf(tmp, sizeof(tmp), "生存规划 #%d", tid);
+                size_t n2 = strlen(tmp);
+                if (n2 >= sizeof(v.Name))
+                    n2 = sizeof(v.Name) - 1;
+                memcpy(v.Name, tmp, n2);
+                v.Name[n2] = 0;
+                ILStringToUtf8(cfg->Dec_Local, tmp, sizeof(tmp));
+                if (!tmp[0])
+                    ILStringToUtf8(cfg->Dec, tmp, sizeof(tmp));
+                n2 = strlen(tmp);
+                if (n2 >= sizeof(v.Description))
+                    n2 = sizeof(v.Description) - 1;
+                memcpy(v.Description, tmp, n2);
+                v.Description[n2] = 0;
             }
-            // RandomPlanID 是随机组 id -> Get_Config_RandomGroup.IdList
-            if (dr->RandomPlanID)
-            {
-                size_t n = ListGetCount(dr->RandomPlanID);
-                for (size_t j = 0; j < n && written < maxItems; j++)
-                {
-                    int32_t gid = IntListGet(dr->RandomPlanID, j, -1);
-                    if (gid <= 0 || !g_miConfigGetRandomGroup)
-                        continue;
-                    Config_RandomGroup_o* rg = (Config_RandomGroup_o*)InvokeIntArg(g_miConfigGetRandomGroup, cm, gid);
-                    if (!rg || !rg->IdList)
-                        continue;
-                    size_t n2 = ListGetCount(rg->IdList);
-                    for (size_t k = 0; k < n2 && written < maxItems; k++)
-                    {
-                        int32_t tid = IntListGet(rg->IdList, k, -1);
-                        if (tid <= 0)
-                            continue;
-                        Config_Talent_o* cfg = FindTalentConfig(tid);
-                        if (!cfg)
-                            continue;
-                        SLSurvivalPlanView& v = outItems[written];
-                        v.TalentId = tid;
-                        v.Level = cfg->Lv;
-                        v.Active = sp && sp->SaveCache ? PlanIdInSaveCache(tid) : false;
-                        char tmp[512];
-                        ILStringToUtf8(cfg->Name_Local, tmp, sizeof(tmp));
-                        if (!tmp[0])
-                            ILStringToUtf8(cfg->Name, tmp, sizeof(tmp));
-                        if (!tmp[0])
-                            snprintf(tmp, sizeof(tmp), "生存规划 #%d", tid);
-                        size_t n3 = strlen(tmp);
-                        if (n3 >= sizeof(v.Name))
-                            n3 = sizeof(v.Name) - 1;
-                        memcpy(v.Name, tmp, n3);
-                        v.Name[n3] = 0;
-                        ILStringToUtf8(cfg->Dec_Local, tmp, sizeof(tmp));
-                        if (!tmp[0])
-                            ILStringToUtf8(cfg->Dec, tmp, sizeof(tmp));
-                        n3 = strlen(tmp);
-                        if (n3 >= sizeof(v.Description))
-                            n3 = sizeof(v.Description) - 1;
-                        memcpy(v.Description, tmp, n3);
-                        v.Description[n3] = 0;
-                        written++;
-                    }
-                }
-            }
+            written++;
         }
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
@@ -2783,31 +2759,85 @@ int32_t SLSDK_GetSurvivalPlanCatalog(SLSurvivalPlanView* outItems, int32_t maxIt
 
 bool SLSDK_AddSurvivalPlan(int32_t talentId)
 {
+    g_planError[0] = 0;
+    g_planStep = "ModBatch2Init";
     if (!ModBatch2Init())
+    {
+        snprintf(g_planError, sizeof(g_planError), "ModBatch2Init 失败");
         return false;
+    }
+    SurvivalPlanningComponent_o* sp = nullptr;
+    Il2CppObject* buff = nullptr;
     __try
     {
-        SurvivalPlanningComponent_o* sp = (SurvivalPlanningComponent_o*)GetComp(g_klassSurvivalPlanning);
-        Il2CppObject* buff = GetComp(g_klassBuffComponent);
-        if (!sp || !buff || talentId <= 0)
+        // 确保当前线程已 attach il2cpp（面板在 D3D11 Present 渲染线程执行，未 attach 时写操作 runtime_invoke 会访问违例）
+        if (g_domain && g_IL2CPP && g_IL2CPP->thread_attach)
+            g_IL2CPP->thread_attach(g_domain);
+        g_planStep = "GetComp SP";
+        sp = (SurvivalPlanningComponent_o*)GetComp(g_klassSurvivalPlanning);
+        g_planStep = "GetComp Buff";
+        buff = GetComp(g_klassBuffComponent);
+        if (!sp)
+        {
+            snprintf(g_planError, sizeof(g_planError), "SurvivalPlanningComponent 为空");
             return false;
+        }
+        if (!buff)
+        {
+            snprintf(g_planError, sizeof(g_planError), "BuffComponent 为空");
+            return false;
+        }
+        if (talentId <= 0)
+        {
+            snprintf(g_planError, sizeof(g_planError), "无效 talentId=%d", talentId);
+            return false;
+        }
+        g_planStep = "FindTalentConfig";
         if (!FindTalentConfig(talentId))
-            return false; // 配置不存在
-        if (!sp->SaveCache)
-            return false; // 未加载
-        void* p[2] = { &buff, &talentId };
-        if (!InvokeOk(g_miPlanAddBuff, sp, p))
+        {
+            snprintf(g_planError, sizeof(g_planError), "Talent 配置不存在 #%d", talentId);
             return false;
+        }
+        g_planStep = "SaveCache 检查";
+        if (!sp->SaveCache)
+        {
+            snprintf(g_planError, sizeof(g_planError), "SaveCache 未加载");
+            return false;
+        }
+        g_planStep = "Invoke AddBuff";
+        // 传参约定：引用类型参数直接传对象指针（IL2CPP runtime_invoke 对引用参数按值传递对象引用）
+        void* p[2] = { buff, &talentId };
+        if (!InvokeOk(g_miPlanAddBuff, sp, p))
+        {
+            snprintf(g_planError, sizeof(g_planError), "AddBuff 调用异常（方法=%p）", (void*)g_miPlanAddBuff);
+            return false;
+        }
+        g_planStep = "NotifyUpdate";
         if (g_miPlanNotifyUpdate)
             InvokeNoArg(g_miPlanNotifyUpdate, sp);
+        g_planStep = "BuffRefresh";
         if (g_miBuffRequestRefresh)
             InvokeNoArg(g_miBuffRequestRefresh, buff);
-        return PlanIdInSaveCache(talentId);
+        g_planStep = "SaveCache 校验";
+        if (!PlanIdInSaveCache(talentId))
+        {
+            snprintf(g_planError, sizeof(g_planError), "AddBuff 返回但 SaveCache 未包含 #%d", talentId);
+            return false;
+        }
+        g_planStep = "完成";
+        return true;
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
+        snprintf(g_planError, sizeof(g_planError), "异常 0x%08X @ %s (sp=%p buff=%p mi=%p)", GetExceptionCode(), g_planStep ? g_planStep : "?", (void*)sp, (void*)buff, (void*)g_miPlanAddBuff);
         return false;
     }
+}
+
+// 上次生存规划操作失败原因
+const char* SLSDK_GetLastPlanError()
+{
+    return g_planError;
 }
 
 bool SLSDK_RemoveSurvivalPlan(int32_t talentId)
@@ -2816,11 +2846,16 @@ bool SLSDK_RemoveSurvivalPlan(int32_t talentId)
         return false;
     __try
     {
+        // 确保当前线程已 attach il2cpp（同 AddSurvivalPlan）
+        if (g_domain && g_IL2CPP && g_IL2CPP->thread_attach)
+            g_IL2CPP->thread_attach(g_domain);
+
         SurvivalPlanningComponent_o* sp = (SurvivalPlanningComponent_o*)GetComp(g_klassSurvivalPlanning);
         Il2CppObject* buff = GetComp(g_klassBuffComponent);
         if (!sp || !buff || talentId <= 0)
             return false;
-        void* p[2] = { &buff, &talentId };
+        // 传参约定：引用类型参数直接传对象指针（同 AddSurvivalPlan）
+        void* p[2] = { buff, &talentId };
         if (!InvokeOk(g_miPlanRemoveBuff, sp, p))
             return false;
         if (g_miPlanNotifyUpdate)
@@ -2850,11 +2885,16 @@ int32_t SLSDK_GetProficiencies(SLProficiencyView* outItems, int32_t maxItems)
         if (!list)
             return 0;
         size_t n = ListGetCount(list);
-        for (size_t i = 0; i < n && written < maxItems; i++)
+        for (size_t i = 0; i < n; i++)
         {
             ProficiencySystemSnapshot_o* snap = (ProficiencySystemSnapshot_o*)ListGetItem(list, i);
             if (!snap || snap->SystemId < 1 || snap->SystemId > 6)
                 continue;
+            if (!(outItems && written < maxItems))
+            {
+                written++;
+                continue;
+            }
             SLProficiencyView& v = outItems[written];
             v.TypeId = snap->SystemId;
             char tmp[256];
@@ -3672,6 +3712,52 @@ bool SLSDK_GetHomeDurabilitySummary(int32_t slotTypeId, int32_t* count, int32_t*
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
         return false;
+    }
+}
+
+// 设施耐久锁（任意槽位类型；对齐属性锁 SLSDK_ApplyAttrLocks：每帧保持；值相等跳过写）
+void SLSDK_ApplyDurabilityLockSlot(int32_t slotTypeId, int32_t value)
+{
+    if (slotTypeId <= 0 || value <= 0)
+        return;
+    if (!ModBatch3Init())
+        return;
+    __try
+    {
+        Il2CppObject* am = GetWorldManager(OFF_BLW_AgentManager);
+        if (!am || !g_miAgentGetHomeFurnitures)
+            return;
+        void* p1[1] = { &slotTypeId };
+        Il2CppObject* furnList = InvokeRet(g_miAgentGetHomeFurnitures, am, p1);
+        if (!furnList)
+            return;
+        size_t n = ListGetCount(furnList);
+        for (size_t i = 0; i < n; i++)
+        {
+            BaseAgent_o* furn = (BaseAgent_o*)ListGetItem(furnList, i);
+            Il2CppObject* dur = GetFurnitureDurability(furn);
+            if (!dur)
+                continue;
+            bool needCur = g_miFurnGetCurDurability
+                ? (UnboxInt32((Il2CppObject*)InvokeNoArg(g_miFurnGetCurDurability, dur), -1) != value)
+                : true;
+            bool needMax = g_miFurnGetMaxDurability
+                ? (UnboxInt32((Il2CppObject*)InvokeNoArg(g_miFurnGetMaxDurability, dur), -1) != value)
+                : true;
+            if (needMax && g_miFurnSetMaxDurability)
+            {
+                void* p2[1] = { &value };
+                InvokeOk(g_miFurnSetMaxDurability, dur, p2);
+            }
+            if (needCur && g_miFurnSetCurDurability)
+            {
+                void* p2[1] = { &value };
+                InvokeOk(g_miFurnSetCurDurability, dur, p2);
+            }
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
     }
 }
 

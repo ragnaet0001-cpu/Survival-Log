@@ -11,7 +11,7 @@ DWORD WINAPI MainThread(HMODULE hModule, LPVOID)
     if (!InitD3D11Hook())
     {
         LOG_ERROR("Failed to initialize D3D11 hook");
-        CleanupConsole();
+        //CleanupConsole();
         FreeLibraryAndExitThread(hModule, 1);
         return 1;
     }
@@ -29,12 +29,12 @@ BOOL APIENTRY DllMain(HMODULE hModule,
     {
     case DLL_PROCESS_ATTACH:
         DisableThreadLibraryCalls(hModule);
-        CreateConsole();
+        //CreateConsole();
         CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)MainThread, hModule, 0, nullptr));
         break;
     case DLL_PROCESS_DETACH:
         ReleaseD3D11Hook();
-        CleanupConsole();
+        //CleanupConsole();
         break;
     }
     return TRUE;

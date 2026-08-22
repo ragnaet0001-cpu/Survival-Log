@@ -5,6 +5,29 @@
 #include <cstdint>
 #include "../../SDK/SurvivalLogSDK.h"
 
+// ---------- 全局锁定状态（tab 勾选只改状态；RenderPanel 每帧调用 PanelUpdateLocks 统一生效） ----------
+bool g_lock_hp = false, g_lock_sta = false, g_lock_sat = false, g_lock_mor = false;
+bool g_lock_dur_slots[10] = {}; // 槽位类型锁（下标 0=id1 小 ... 9=id10 塔防装置）
+int32_t g_lock_dur_value = 10000;
+
+// 每帧统一生效的锁定（对齐 mod CheatGUI.Update：锁定不依赖当前打开的 tab）
+void PanelUpdateLocks()
+{
+    // 属性锁（mod ApplyAttrLocks：每帧补满；全关时内部直接返回）
+    if (g_lock_hp || g_lock_sta || g_lock_sat || g_lock_mor)
+        SLSDK_ApplyAttrLocks(g_lock_hp, g_lock_sta, g_lock_sat, g_lock_mor);
+    // 设施耐久锁（各槽位类型每帧保持；TabFacilities 勾选只改状态，对齐属性锁）
+    for (int i = 0; i < 10; i++)
+    {
+        if (g_lock_dur_slots[i])
+            SLSDK_ApplyDurabilityLockSlot(i + 1, g_lock_dur_value);
+    }
+    // 防暴露每帧清零（开关由 TabMisc -> SLSDK_SetNoExploreExposure 维护，内部读 SDK 全局开关）
+    SLSDK_ApplyNoExploreExposure();
+    // 冻结每帧保持（开关由 TabPrepare -> SLSDK_SetTimeFrozen 维护，内部读 SDK 全局 FrozenOverride）
+    SLSDK_ApplyFrozenOverride();
+}
+
 // 原神项目同款样式设置（SetStyle）
 static void SetStyle()
 {
@@ -49,7 +72,9 @@ static void SetStyle()
     styles.WindowTitleAlign = ImVec2(0.5, 0.5);
 }
 
-void RenderPanel()
+// 每帧无条件执行的系统逻辑（SDK 延迟初始化 + hook 安装 + 锁定生效）。
+// 与菜单显隐无关：d3d11hook Present_Hook 每帧调用（菜单隐藏时 RenderPanel 不执行，但这里必须跑）
+void PanelFrameUpdate()
 {
     // SDK 延迟初始化：游戏启动早期 HotUpdate.dll 未加载，每 2 秒重试
     static ULONGLONG s_last_sdk_try = 0;
@@ -68,6 +93,12 @@ void RenderPanel()
         SLSDK_InstallHooks();
     }
 
+    // 锁定类功能每帧统一生效（与当前打开的 tab 无关，对齐 mod CheatGUI.Update）
+    PanelUpdateLocks();
+}
+
+void RenderPanel()
+{
     // 原神同款：样式只设置一次
     static bool is_style_set = false;
     if (!is_style_set)

@@ -235,8 +235,14 @@ static HRESULT WINAPI Present_Hook(IDXGISwapChain *pSwapChain, UINT SyncInterval
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
-
-        RenderPanel();
+        // SDK 初始化/hook 安装/锁定生效与菜单显隐无关：隐藏菜单时 RenderPanel 不执行，这里必须每帧跑
+        PanelFrameUpdate();
+        if (ImGui::IsKeyPressed(ImGuiKey_Home))
+        {
+            show_window = !show_window;
+        }
+        if(show_window)
+            RenderPanel();
 
         g_pContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
 

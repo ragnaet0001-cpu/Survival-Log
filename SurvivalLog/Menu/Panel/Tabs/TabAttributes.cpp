@@ -45,17 +45,14 @@ void TabAttributes()
                 SLSDK_SetAttrMax(attr_max_keys[max_sel], max_edit);
             ImGui::Separator();
 
-            // 属性锁（mod ApplyAttrLocks：每帧补满）
-            static bool lock_hp = false, lock_sta = false, lock_sat = false, lock_mor = false;
-            ImGui::Checkbox((const char *)u8"锁定生命", &lock_hp);
+            // 属性锁（勾选只改全局状态；每帧由 PanelUpdateLocks 统一补满，换页也生效）
+            ImGui::Checkbox((const char *)u8"锁定生命", &g_lock_hp);
             ImGui::SameLine();
-            ImGui::Checkbox((const char *)u8"锁定精力", &lock_sta);
+            ImGui::Checkbox((const char *)u8"锁定精力", &g_lock_sta);
             ImGui::SameLine();
-            ImGui::Checkbox((const char *)u8"锁定饱腹", &lock_sat);
+            ImGui::Checkbox((const char *)u8"锁定饱腹", &g_lock_sat);
             ImGui::SameLine();
-            ImGui::Checkbox((const char *)u8"锁定心态", &lock_mor);
-            if (lock_hp || lock_sta || lock_sat || lock_mor)
-                SLSDK_ApplyAttrLocks(lock_hp, lock_sta, lock_sat, lock_mor);
+            ImGui::Checkbox((const char *)u8"锁定心态", &g_lock_mor);
             ImGui::Separator();
 
             // 移速倍率（mod SetMoveSpeedMultiplier：0.5-5.0）

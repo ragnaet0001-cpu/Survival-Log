@@ -13,12 +13,12 @@ void TabPrepare()
             }
 
             // 诊断信息（定位实例链断点）
-            static char sdk_diag[1024] = {};
-            SLSDK_DebugInfo(sdk_diag, sizeof(sdk_diag));
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
-            ImGui::TextWrapped("%s", sdk_diag);
-            ImGui::PopStyleColor();
-            ImGui::Separator();
+            //static char sdk_diag[1024] = {};
+            //SLSDK_DebugInfo(sdk_diag, sizeof(sdk_diag));
+            //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+            //ImGui::TextWrapped("%s", sdk_diag);
+            //ImGui::PopStyleColor();
+            //ImGui::Separator();
 
             // 金币（mod：CurrentGold 显示 + AddGold 增加）
             int curGold = SLSDK_GetGold();
@@ -66,7 +66,6 @@ void TabPrepare()
             static bool time_freeze = false;
             if (ImGui::Checkbox((const char *)u8"冻结时间", &time_freeze))
                 SLSDK_SetTimeFrozen(time_freeze);
-            if (time_freeze)
-                SLSDK_ApplyFrozenOverride(); // 每帧保持冻结（mod FrozenOverride 同款）
+            // 每帧保持冻结由 PanelUpdateLocks 统一执行（读 SDK 全局 FrozenOverride，换页也生效）
             return;
 }
