@@ -1,9 +1,6 @@
 # SurvivalLog - Survival Log 修改器
 
-Survival Log（生存日志）游戏的修改器，双实现：
-
-1. **C++ 原生 DLL**（本仓库主工程）：D3D11 Hook + ImGui 菜单 + il2cpp 运行时 API 直调游戏内部逻辑，功能全部按 mod（C# 版）同款实现
-2. **SurvivalLogMod**（C# BepInEx 插件，参考实现）：功能完整版，Vuplex WebView 网页面板（详见 [SurvivalLogMod/README.md](SurvivalLogMod/README.md)）
+Survival Log（生存日志）游戏的修改器：**C++ 原生 DLL**（D3D11 Hook + ImGui 菜单 + il2cpp 运行时 API 直调游戏内部逻辑），功能全部按 mod（C# 版）同款实现。
 
 ---
 
@@ -13,7 +10,7 @@ Survival Log（生存日志）游戏的修改器，双实现：
 | --- | --- |
 | 准备阶段 | 金币显示/增加、游戏时间（天/时刻/总秒/倒计时）、延长倒计时、冻结时间 |
 | 物品 | 物品目录搜索（按名称/ID）、添加物品、数量设置 |
-| 背包 | 背包物品列表、删除/复制、设置数量、背包尺寸修改、最大负重 |
+| 背包 | 背包物品列表、删除/复制、设置数量、背包尺寸修改、最大负重、柜子/货架扩容（收纳架/置物架/冰箱白名单行数与负重倍率） |
 | 杂项 | 邻居好感、图鉴/成就解锁、暴露度、生存点、锁定移动、禁用游戏热键、无限食物保质期、动作速度倍率、烹饪时间倍率、暴露增长倍率 |
 | 属性 | 饱腹/心态/精力/生命/Health 当前值与上限、属性锁（每帧补满）、移速倍率 |
 | 熟练度 | 6 类熟练度查看、加经验、加等级 |
@@ -27,6 +24,11 @@ Survival Log（生存日志）游戏的修改器，双实现：
 > - 杂项 tab：动作速度倍率（Get_Config_Action hook 返回时改 During/N，ActionType==2 跳过；不做每帧覆盖，避免卡动作）、烹饪时间倍率（OnCookingStart 参数缩放，下限 1s）、暴露增长倍率（ExploreManager 时间/移动速率 + AddExposure 事件缩放）
 > - 曾添加后按需求移除：五维上限倍率（属性 tab）、背包负重/行数倍率（背包 tab）——UI 与 SDK 层均已删除
 > - 崩溃加固：全部 22 个 Detours hook 函数体包 __try/__except（悬垂对象访问冲突不再崩进程）、PanelFrameUpdate 每帧 il2cpp_thread_attach（渲染线程 GC 期安全，SLSDK_EnsureThreadAttached）、每帧字典遍历加 entries/count 热重载检测、缓存字典容量上限（>1024 自动清空）
+>
+> 2026-08-24 柜子扩容（参考懒虫增强版白名单机制）+ 无限食物完善：
+> - 柜子/货架扩容（背包 tab）：hook ConfigManager.Get_Config_Bag，返回时按名字（收纳架/置物架/冰箱，中英文关键词）自动识别容器进白名单，行数×N + 负重×N 直写 Config_Bag（原始值记忆 per 对象、可还原，缓存上限防读档累积）；玩家背包不受影响（走原有尺寸/负重功能）；倍率默认 1 不启用，重开面板生效
+> - 无限食物：物品详情弹窗（ItemDetailPopup）保质期显示 ∞（hook Reducer_Web_ItemDetailPopup.SetShelfLifeParts，把 valueText 换成 ∞，点开物品不再显示真实倒计时）
+> - 无限食物崩溃修复：∞ 字符串用 il2cpp_gchandle_new 固定（C++ 全局裸指针不在 IL2CPP GC root 里，游戏更新后会被回收成悬垂，导致打开背包时 GetShelfLifeText 返回悬垂对象崩溃/物品不显示）
 
 
 ---
@@ -36,7 +38,7 @@ Survival Log（生存日志）游戏的修改器，双实现：
 ```
 SurvivalLog/
 ├── DXhook/          D3D11 Hook + ImGui 渲染层（Present 每帧无条件调 PanelFrameUpdate；show_window 为 true 时再调 RenderPanel）
-├── Hook/            Detours Hook 层（HookManager：背包尺寸/无限食物/时间冻结等 20 个 hook）
+├── Hook/            Detours Hook 层（HookManager：背包尺寸/无限食物/时间冻结/柜子扩容等 20+ 个 hook）
 ├── Menu/Panel/      菜单面板
 │   ├── panel.cpp    框架（窗口/侧边栏/分发 + PanelFrameUpdate 每帧系统逻辑 + PanelUpdateLocks 锁定生效）
 │   └── Tabs/        9 个 tab 独立文件（TabXxx.cpp，对齐原神项目 Gui 风格）
@@ -100,16 +102,9 @@ ReduxUISystem.Instance → reduxStoreLayer(+0x38) → stateTree(+0x40) → State
 
 ```
 ├── SurvivalLog/            C++ 原生 DLL 工程（本 README 主对象）
-├── SurvivalLogMod/         C# BepInEx 参考实现（功能全，WebView 面板）
-├── SDK_dump/               游戏 dump 资料（il2cpp.h / dump.cs / monodump_HotUpdate.txt）
-├── x64/                    构建输出（Release\SurvivalLog.dll）
+├── SDK_dump/               游戏 dump 资料（Il2CppDumper-v6.7.46 工具 / SurvivalLog_PC dump / monodump_HotUpdate.txt 等）
+├── x64/                    构建输出（Release\SurvivalLog.dll + .pdb）
 ├── SurvivalLog.slnx        解决方案
-├── C++迁移计划.md          功能迁移记录（mod → C++）
-└── 功能与调用函数清单.txt   面板 tab / hook / API 全清单
+└── push.bat                git 推送脚本
 ```
 
-## 相关文档
-
-- [C++迁移计划.md](C++迁移计划.md)
-- [功能与调用函数清单.txt](功能与调用函数清单.txt)
-- [SurvivalLogMod/README.md](SurvivalLogMod/README.md)

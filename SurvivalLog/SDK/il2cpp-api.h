@@ -61,6 +61,8 @@ typedef const char* (*il2cpp_method_get_name_t)(const MethodInfo* method);
 typedef uint32_t (*il2cpp_method_get_param_count_t)(const MethodInfo* method);
 typedef Il2CppObject* (*il2cpp_runtime_invoke_t)(MethodInfo* method, void* obj, void** params, Il2CppException** exc);
 typedef Il2CppString* (*il2cpp_string_new_t)(const char* str);
+typedef void* (*il2cpp_gchandle_new_t)(Il2CppObject* obj, bool pinned);
+typedef Il2CppObject* (*il2cpp_gchandle_get_target_t)(void* handle);
 typedef Il2CppClass* (*il2cpp_object_get_class_t)(Il2CppObject* obj);
 
 // Il2CppType 的 type 枚举位（64 位布局：attrs@0x08, type@0x0A, num_mods/byref/pinned@0x0B, kind/valuetype@0x0C）
@@ -102,6 +104,8 @@ struct IL2CPP_API
     il2cpp_method_get_param_count_t method_get_param_count;
     il2cpp_runtime_invoke_t runtime_invoke;
     il2cpp_string_new_t string_new;
+    il2cpp_gchandle_new_t gchandle_new;
+    il2cpp_gchandle_get_target_t gchandle_get_target;
     il2cpp_object_get_class_t object_get_class;
 };
 

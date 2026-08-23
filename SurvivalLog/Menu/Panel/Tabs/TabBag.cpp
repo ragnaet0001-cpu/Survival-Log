@@ -84,6 +84,37 @@ void TabBag()
                 ImGui::SameLine();
                 if (ImGui::Button((const char *)u8"还原负重"))
                     SLSDK_ResetMaxBurden();
+                ImGui::Separator();
+                ImGui::Text((const char *)u8"柜子/货架扩容（收纳架/置物架/冰箱自动识别，重开面板生效）");
+                {
+                    int32_t cr = 1, cb = 1;
+                    SLSDK_GetContainerExpansion(&cr, &cb);
+                    static int container_rows_mult = 1, container_burden_mult = 1;
+                    if (cr != 1 || cb != 1)
+                    {
+                        container_rows_mult = cr;
+                        container_burden_mult = cb;
+                    }
+                    ImGui::SetNextItemWidth(90);
+                    ImGui::InputInt((const char *)u8"行数倍率##crows", &container_rows_mult);
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(90);
+                    ImGui::InputInt((const char *)u8"负重倍率##cburden", &container_burden_mult);
+                    if (container_rows_mult < 1)
+                        container_rows_mult = 1;
+                    if (container_burden_mult < 1)
+                        container_burden_mult = 1;
+                    ImGui::SameLine();
+                    if (ImGui::Button((const char *)u8"应用柜子扩容"))
+                        SLSDK_SetContainerExpansion(container_rows_mult, container_burden_mult);
+                    ImGui::SameLine();
+                    if (ImGui::Button((const char *)u8"还原柜子扩容"))
+                    {
+                        SLSDK_SetContainerExpansion(1, 1);
+                        container_rows_mult = 1;
+                        container_burden_mult = 1;
+                    }
+                }
             }
             else
             {

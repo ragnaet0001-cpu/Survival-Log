@@ -608,6 +608,11 @@ bool SLSDK_ResetBagSize();
 // 设置最大负重（mod SetMaxBurden 同款：AddExtraBurden 补足到目标）
 bool SLSDK_SetMaxBurden(int32_t target);
 bool SLSDK_ResetMaxBurden();
+// ---------- 物品柜/架容量增强（懒虫增强版白名单扩容移植） ----------
+// 收纳架/置物架/冰箱按名字自动进白名单（Get_Config_Bag hook 应用），行数xrowsMult、负重xburdenMult；1=不启用
+bool SLSDK_SetContainerExpansion(int32_t rowsMult, int32_t burdenMult);
+void SLSDK_ResetContainerExpansion();
+void SLSDK_GetContainerExpansion(int32_t* rowsMult, int32_t* burdenMult);
 
 // ---------- 属性（mod GameApi 完整版） ----------
 // 当前值（mod GetAttr 同款：GetTotalValue_Float 四舍五入）

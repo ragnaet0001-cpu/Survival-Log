@@ -54,6 +54,8 @@ bool LoadIL2CPPApi()
     LOAD_API(method_get_param_count, il2cpp_method_get_param_count)
     LOAD_API(runtime_invoke, il2cpp_runtime_invoke)
     LOAD_API(string_new, il2cpp_string_new)
+    LOAD_API(gchandle_new, il2cpp_gchandle_new)
+    LOAD_API(gchandle_get_target, il2cpp_gchandle_get_target)
     LOAD_API(object_get_class, il2cpp_object_get_class)
 #undef LOAD_API
 
@@ -3539,6 +3541,12 @@ namespace
     int32_t g_appliedExtraBurden = 0;                 // 负重补足量（mod _appliedExtraBurden）
     int32_t g_bagSizeCols = 0, g_bagSizeRows = 0;     // 背包原始尺寸记忆（mod OriginalSizes）
     int32_t g_desiredBagCols = 0, g_desiredBagRows = 0; // 期望背包尺寸（mod _desiredColumns/_desiredRows，hook 用）
+    // 物品柜/架容量增强（懒虫增强版白名单扩容）：收纳架/置物架/冰箱白名单 + 行数/负重倍率
+    int32_t g_containerRowsMult = 1;   // 柜子行数倍率（1=关闭）
+    int32_t g_containerBurdenMult = 1; // 柜子负重倍率（1=关闭）
+    std::unordered_set<int32_t> g_containerBagIds;            // 白名单 bagId（名字匹配后加入）
+    std::map<void*, int32_t> g_origContainerRows;   // 原始行数记忆（per Config_Bag 对象指针）
+    std::map<void*, int32_t> g_origContainerBurden; // 原始负重记忆
 
     static bool ModBatch3Init()
     {
@@ -3633,6 +3641,102 @@ namespace
         return lo;
     }
 }
+
+    // ---------- 物品柜/架容量增强辅助（懒虫 BagWhitelist/ConfigBagPatch 移植） ----------
+
+    // ASCII 小写（避免依赖 <cctype>）
+    static char AsciiLower(char ch)
+    {
+        return (ch >= 'A' && ch <= 'Z') ? (char)(ch + ('a' - 'A')) : ch;
+    }
+
+    // 不区分大小写子串匹配（ASCII 部分；中文 UTF-8 多字节不受影响）
+    static bool StrIStr(const char* haystack, const char* needle)
+    {
+        if (!haystack || !needle || !needle[0])
+            return false;
+        size_t nl = strlen(needle);
+        size_t hl = strlen(haystack);
+        if (nl > hl)
+            return false;
+        for (size_t i = 0; i + nl <= hl; i++)
+        {
+            size_t j = 0;
+            for (; j < nl; j++)
+            {
+                if (AsciiLower(haystack[i + j]) != AsciiLower(needle[j]))
+                    break;
+            }
+            if (j == nl)
+                return true;
+        }
+        return false;
+    }
+
+    // 容器名字识别：收纳架/置物架/冰箱（中英文都认；懒虫 IsShelfName/IsFridgeName 合并）
+    static bool IsContainerName(const char* name)
+    {
+        if (!name || !name[0])
+            return false;
+        static const char* kKeywords[] = { "收纳架", "置物架", "冰箱", "shelf", "rack", "fridge", "refrigerator" };
+        for (size_t i = 0; i < sizeof(kKeywords) / sizeof(kKeywords[0]); i++)
+        {
+            if (StrIStr(name, kKeywords[i]))
+                return true;
+        }
+        return false;
+    }
+
+    // 对 Config_Bag 应用容器扩容（幂等：原始值记忆 + 按倍率重写；懒虫 ConfigBagPatch.ApplyTo 同款）
+    static void ApplyContainerExpansion(Config_Bag_o* bag)
+    {
+        if (!bag)
+            return;
+        bool whitelisted = (bag->ID > 0) && (g_containerBagIds.count(bag->ID) != 0);
+        if (!whitelisted)
+        {
+            char nameBuf[256] = { 0 };
+            char nameBuf2[256] = { 0 };
+            ILStringToUtf8(bag->Name, nameBuf, sizeof(nameBuf));
+            ILStringToUtf8(bag->Name_Local, nameBuf2, sizeof(nameBuf2));
+            if (!IsContainerName(nameBuf) && !IsContainerName(nameBuf2))
+                return;
+            if (bag->ID > 0)
+                g_containerBagIds.insert(bag->ID);
+        }
+        // 行数 xN（Size[1]，列不动；懒虫只改行数）
+        if (g_containerRowsMult > 1 && bag->Size)
+        {
+            void* items = *(void**)((uint8_t*)bag->Size + OFF_LIST_ITEMS);
+            if (items)
+            {
+                int32_t* pRows = (int32_t*)((uint8_t*)items + OFF_ARRAY_DATA + sizeof(int32_t));
+                if (g_origContainerRows.find(bag) == g_origContainerRows.end())
+                    g_origContainerRows[bag] = *pRows;
+                int32_t val = g_origContainerRows[bag] * g_containerRowsMult;
+                if (val > 0 && val < 100000)
+                    *pRows = val;
+            }
+        }
+        // 负重 xN（Burden 字段直写）
+        if (g_containerBurdenMult > 1)
+        {
+            if (g_origContainerBurden.find(bag) == g_origContainerBurden.end())
+                g_origContainerBurden[bag] = bag->Burden;
+            int64_t v = (int64_t)g_origContainerBurden[bag] * g_containerBurdenMult;
+            bag->Burden = (v > INT32_MAX) ? INT32_MAX : (int32_t)v;
+        }
+    }
+
+    // 原始值缓存上限保护（>2048 条清空重来，防读档对象指针累积；懒虫 C# 1024 同思路）
+    static void CapContainerCache()
+    {
+        if (g_origContainerRows.size() + g_origContainerBurden.size() > 2048)
+        {
+            g_origContainerRows.clear();
+            g_origContainerBurden.clear();
+        }
+    }
 
 // ---------- 设施耐久 ----------
 bool SLSDK_SetHomeDurability(int32_t slotTypeId, int32_t value, int32_t* updatedOut)
@@ -3970,6 +4074,70 @@ bool SLSDK_ResetMaxBurden()
     }
 }
 
+// ---------- 物品柜/架容量增强（懒虫增强版白名单扩容移植） ----------
+// 收纳架/置物架/冰箱按名字自动进白名单（Get_Config_Bag hook 应用），行数xrowsMult、负重xburdenMult
+bool SLSDK_SetContainerExpansion(int32_t rowsMult, int32_t burdenMult)
+{
+    if (rowsMult < 1 || rowsMult > 100 || burdenMult < 1 || burdenMult > 1000)
+        return false;
+    if (!ModBatch3Init())
+        return false;
+    g_containerRowsMult = rowsMult;
+    g_containerBurdenMult = burdenMult;
+    __try
+    {
+        // Reapply：遍历已记忆原始值的容器对象，按新倍率重写（懒虫 ConfigBagPatch.Reapply 同款）
+        for (std::map<void*, int32_t>::iterator it = g_origContainerRows.begin(); it != g_origContainerRows.end(); ++it)
+        {
+            Config_Bag_o* bag = (Config_Bag_o*)it->first;
+            if (!bag || !bag->Size)
+                continue;
+            void* items = *(void**)((uint8_t*)bag->Size + OFF_LIST_ITEMS);
+            if (!items)
+                continue;
+            int32_t* pRows = (int32_t*)((uint8_t*)items + OFF_ARRAY_DATA + sizeof(int32_t));
+            int32_t val = it->second * g_containerRowsMult;
+            if (val > 0 && val < 100000)
+                *pRows = val;
+        }
+        for (std::map<void*, int32_t>::iterator it = g_origContainerBurden.begin(); it != g_origContainerBurden.end(); ++it)
+        {
+            Config_Bag_o* bag = (Config_Bag_o*)it->first;
+            if (!bag)
+                continue;
+            int64_t v = (int64_t)it->second * g_containerBurdenMult;
+            bag->Burden = (v > INT32_MAX) ? INT32_MAX : (int32_t)v;
+        }
+        LOG_INFO("ContainerExpansion set: rows x%d burden x%d (whitelist=%zu)", rowsMult, burdenMult, g_containerBagIds.size());
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
+void SLSDK_ResetContainerExpansion()
+{
+    SLSDK_SetContainerExpansion(1, 1);
+    __try
+    {
+        g_origContainerRows.clear();
+        g_origContainerBurden.clear();
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
+void SLSDK_GetContainerExpansion(int32_t* rowsMult, int32_t* burdenMult)
+{
+    if (rowsMult)
+        *rowsMult = g_containerRowsMult;
+    if (burdenMult)
+        *burdenMult = g_containerBurdenMult;
+}
+
 // ============================================================
 // 批次4：Detours hook 层（mod Harmony 补丁的原生版，用 HookManager.h 封装）
 // 目标（dump.cs 签名确认）：
@@ -4131,6 +4299,25 @@ namespace
         {
         }
     }
+
+    // 物品柜/架容量增强（懒虫 ConfigBagPatch Postfix：Get_Config_Bag 返回时对白名单容器应用倍率）
+    static void* Hook_GetConfigBag(void* self, int32_t bagId)
+    {
+        void* cfg = nullptr;
+        __try
+        {
+            cfg = CALL_ORIGIN(Hook_GetConfigBag, self, bagId);
+            if (cfg && (g_containerRowsMult > 1 || g_containerBurdenMult > 1))
+            {
+                ApplyContainerExpansion((Config_Bag_o*)cfg);
+                CapContainerCache();
+            }
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
+        return cfg;
+    }
 }
 
 // 安装全部 hook（幂等；panel 首次渲染时调用，无 __try，klass 均已验证非 null）
@@ -4153,12 +4340,13 @@ bool SLSDK_InstallHooks()
     void* pCountUpCostTime = GetMethodPtr(g_klassCountUpTimer, "CostTime", 2);
     void* pGameTimeUpdate = GetMethodPtr(g_klassGameTimeManager, "Update", 2);
     void* pSendAction = GetMethodPtr(klassCostHour, "SendAction", 1);
+    void* pGetConfigBag = GetMethodPtr(g_klassConfigManager, "Get_Config_Bag", 1);
     if (!pGetOwnerBagSize || !pCheckAndProcessRot || !pGameTimeCostTime || !pCountDownCostTime ||
-        !pCountUpCostTime || !pGameTimeUpdate || !pSendAction)
+        !pCountUpCostTime || !pGameTimeUpdate || !pSendAction || !pGetConfigBag)
     {
-        LOG_ERROR("Hook method resolve failed: bag=%p rot=%p gtmCost=%p cdCost=%p cuCost=%p upd=%p send=%p",
+        LOG_ERROR("Hook method resolve failed: bag=%p rot=%p gtmCost=%p cdCost=%p cuCost=%p upd=%p send=%p cfgBag=%p",
             pGetOwnerBagSize, pCheckAndProcessRot, pGameTimeCostTime, pCountDownCostTime,
-            pCountUpCostTime, pGameTimeUpdate, pSendAction);
+            pCountUpCostTime, pGameTimeUpdate, pSendAction, pGetConfigBag);
         return false;
     }
     HookManager::HookFunction(pGetOwnerBagSize, Hook_GetOwnerBagSize);
@@ -4168,8 +4356,9 @@ bool SLSDK_InstallHooks()
     HookManager::HookFunction(pCountUpCostTime, Hook_CountUpCostTime);
     HookManager::HookFunction(pGameTimeUpdate, Hook_GameTimeUpdate);
     HookManager::HookFunction(pSendAction, Hook_SendAction);
+    HookManager::HookFunction(pGetConfigBag, Hook_GetConfigBag);
     size_t nHooks = HookManager::getHookList().size();
-    LOG_INFO("SurvivalLog hooks installed: %zu/7 in HookManager", nHooks);
+    LOG_INFO("SurvivalLog hooks installed: %zu/8 in HookManager", nHooks);
     // 验证 Detours 是否 patch 成功：入口应为 E9 (jmp rel32)；未 patch 则是原始 prologue
     unsigned char* b1 = (unsigned char*)pGameTimeCostTime;
     unsigned char* b2 = (unsigned char*)pCountDownCostTime;
@@ -4178,6 +4367,7 @@ bool SLSDK_InstallHooks()
     unsigned char* b5 = (unsigned char*)pSendAction;
     unsigned char* b6 = (unsigned char*)pGetOwnerBagSize;
     unsigned char* b7 = (unsigned char*)pCheckAndProcessRot;
+    unsigned char* b8 = (unsigned char*)pGetConfigBag;
     LOG_INFO("[Hook] GTM.CostTime %p: %02X %02X %02X %02X %02X %02X %02X %02X", b1, b1[0], b1[1], b1[2], b1[3], b1[4], b1[5], b1[6], b1[7]);
     LOG_INFO("[Hook] CD.CostTime  %p: %02X %02X %02X %02X %02X %02X %02X %02X", b2, b2[0], b2[1], b2[2], b2[3], b2[4], b2[5], b2[6], b2[7]);
     LOG_INFO("[Hook] CU.CostTime  %p: %02X %02X %02X %02X %02X %02X %02X %02X", b3, b3[0], b3[1], b3[2], b3[3], b3[4], b3[5], b3[6], b3[7]);
@@ -4185,7 +4375,8 @@ bool SLSDK_InstallHooks()
     LOG_INFO("[Hook] SendAction   %p: %02X %02X %02X %02X %02X %02X %02X %02X", b5, b5[0], b5[1], b5[2], b5[3], b5[4], b5[5], b5[6], b5[7]);
     LOG_INFO("[Hook] GetOwnerBag  %p: %02X %02X %02X %02X %02X %02X %02X %02X", b6, b6[0], b6[1], b6[2], b6[3], b6[4], b6[5], b6[6], b6[7]);
     LOG_INFO("[Hook] CheckAndProc %p: %02X %02X %02X %02X %02X %02X %02X %02X", b7, b7[0], b7[1], b7[2], b7[3], b7[4], b7[5], b7[6], b7[7]);
-    g_hooksInstalled = nHooks >= 7;
+    LOG_INFO("[Hook] GetConfigBag %p: %02X %02X %02X %02X %02X %02X %02X %02X", b8, b8[0], b8[1], b8[2], b8[3], b8[4], b8[5], b8[6], b8[7]);
+    g_hooksInstalled = nHooks >= 8;
     if (g_hooksInstalled)
         SLSDK_InstallFoodDisplayHooks();
     return g_hooksInstalled;
@@ -4204,6 +4395,7 @@ namespace
 {
     // "∞" 字符串（UTF-8：E2 88 9E），初始化时构造一次
     Il2CppString* g_infinityString = nullptr;
+    void* g_infinityHandle = nullptr;  // GCHandle 固定 ∞ 字符串（防 GC 回收成悬垂）
 
     // 6 个 Reducer 类名（mod InfiniteFoodReduxTargets.Types 同款）
     static const char* g_reducerNames[6] = {
@@ -4385,6 +4577,21 @@ namespace
             return (float)configLife / 24.0f;
         }
     }
+
+    // 物品详情弹窗保质期（mod 无此 patch，C++ 补充；Reducer_Web_ItemDetailPopup.SetShelfLifeParts static）
+    // 无限开启时把 valueText 换成 ∞，点开物品详情不再显示真实倒计时
+    static void Hook_SetShelfLifeParts(void* state, void* format, void* valueText)
+    {
+        __try
+        {
+            if (g_infiniteFoodShelfLife)
+                valueText = g_infinityString;
+            CALL_ORIGIN(Hook_SetShelfLifeParts, state, format, valueText);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
+    }
 }
 
 // 安装无限食物显示层 hook（由 SLSDK_InstallHooks 调用；无 __try）
@@ -4395,7 +4602,12 @@ bool SLSDK_InstallFoodDisplayHooks()
     if (!g_IL2CPP || !g_IL2CPP->string_new)
         return false;
     if (!g_infinityString)
+    {
         g_infinityString = g_IL2CPP->string_new("\xE2\x88\x9E"); // "∞" UTF-8
+        // GCHandle 固定：C++ 全局裸指针不在 GC root 里，不固定会被回收（打开背包时 GetShelfLifeText 返回悬垂 → 崩溃）
+        if (g_infinityString && g_IL2CPP->gchandle_new)
+            g_infinityHandle = g_IL2CPP->gchandle_new((Il2CppObject*)g_infinityString, false);
+    }
     int32_t installed = 0;
     for (int32_t i = 0; i < 6; i++)
     {
@@ -4447,7 +4659,20 @@ bool SLSDK_InstallFoodDisplayHooks()
             installed++;
         }
     }
-    LOG_INFO("SurvivalLog food display hooks installed: %d/13", installed);
+    // 物品详情弹窗保质期显示（点开物品后的 ItemDetailPopup；SetShelfLifeParts 是唯一保质期文本入口）
+    Il2CppClass* itemDetail = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate.ReduxUI", "Reducer_Web_ItemDetailPopup");
+    if (itemDetail)
+    {
+        MethodInfo* miParts = FindMethodInHierarchy(itemDetail, "SetShelfLifeParts", 3);
+        if (miParts)
+        {
+            void* p = *(void**)((uint8_t*)miParts + OFF_MI_METHODPOINTER);
+            HookManager::HookFunction(p, Hook_SetShelfLifeParts);
+            installed++;
+            LOG_INFO("[Food] ItemDetailPopup.SetShelfLifeParts hooked");
+        }
+    }
+    LOG_INFO("SurvivalLog food display hooks installed: %d/14", installed);
     return installed > 0;
 }
 
