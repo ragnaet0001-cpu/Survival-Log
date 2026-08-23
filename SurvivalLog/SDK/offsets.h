@@ -121,3 +121,9 @@ inline size_t OFF_BSW_HotKeyManager = 0x58; // <_HotKeyManager>k__BackingField�
 
 // ---------- CameraManager ----------
 inline size_t OFF_CAM_isKeyboardMoveBlocked = 0x176; // CameraManager.isKeyboardMoveBlocked（bool 移动锁定）
+
+// ---------- 批次6：dexter.sl 倍率功能（兜底值；Init 时 ResolveFieldOffset 动态解析） ----------
+inline size_t OFF_CM_ActionDict = 0x30;      // ConfigManager._Config_Action_Dict（Dictionary<int, Config_Action>）
+inline size_t OFF_CA_ActionType = 0x40;      // Config_Action.ActionType（Int32）
+inline size_t OFF_CA_During = 0x48;          // Config_Action.During（Single）
+inline size_t OFF_CD_CookDuration = 0x18;    // CookingStartData.CookDuration（Single）

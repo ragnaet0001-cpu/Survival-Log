@@ -627,3 +627,21 @@ bool SLSDK_ResetMoveSpeed();
 
 // ---------- 建造商店（State_Web_BuildShop） ----------
 // bs+0x30 = <Gold> RP<int> 商店显示金钱；bs+0x38 = <PackageCapacity> RP<int> 待安装包裹数量
+
+
+// ---------- 批次6：dexter.sl（3DM mod）倍率功能 ----------
+// 动作速度倍率（mod ConfigActionPatch：During / N，ActionType==2 跳过）
+bool SLSDK_SetActionSpeedMultiplier(int32_t mult);
+void SLSDK_ResetActionSpeedMultiplier();
+void SLSDK_ApplyActionSpeedMultiplier(); // 每帧保持
+// 烹饪时间倍率（mod CookingDurationPatch：OnCookingStart 参数 CookDuration / N，下限 1s）
+bool SLSDK_SetCookingTimeMultiplier(int32_t mult);
+void SLSDK_ResetCookingTimeMultiplier();
+// 暴露增长速率倍率（mod ConfigInstancePatch + ExposureDetour：时间/移动速率 x rate + AddExposure 事件缩放）
+bool SLSDK_SetExposureRate(float rate);
+void SLSDK_ResetExposureRate();
+void SLSDK_ApplyExposureRate(); // 每帧保持
+// 安装批次6 hook（OnCookingStart / AddExposure；幂等，SLSDK_InstallHooks 后调用）
+bool SLSDK_InstallBatch6Hooks();
+// 当前线程 attach 到 il2cpp domain（幂等；渲染线程每帧调用，防 GC 期崩溃）
+void SLSDK_EnsureThreadAttached();

@@ -55,8 +55,10 @@ static void InitImGui(HWND window)
 {
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+    io.WantSaveIniSettings = false;
+    io.IniFilename = nullptr;
 
     // 字体加载带兜底：msyhl -> msyh -> msyhbd -> simhei -> 内置默认字体
     static const char *fontCandidates[] = {

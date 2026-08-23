@@ -26,6 +26,10 @@ void PanelUpdateLocks()
     SLSDK_ApplyNoExploreExposure();
     // 冻结每帧保持（开关由 TabPrepare -> SLSDK_SetTimeFrozen 维护，内部读 SDK 全局 FrozenOverride）
     SLSDK_ApplyFrozenOverride();
+    // dexter.sl 倍率类每帧保持（开关由各 tab 设置，内部判断 on/off；对齐 mod CheatGUI.Update）
+    // 注意：动作速度不走每帧（游戏进行中动作把 During 当倒计时递减，每帧覆盖会卡动作；
+    //       由 Hook_GetConfigAction 对新动作自动应用）
+    SLSDK_ApplyExposureRate();
 }
 
 // 原神项目同款样式设置（SetStyle）
@@ -76,6 +80,8 @@ static void SetStyle()
 // 与菜单显隐无关：d3d11hook Present_Hook 每帧调用（菜单隐藏时 RenderPanel 不执行，但这里必须跑）
 void PanelFrameUpdate()
 {
+    // 渲染线程 attach 到 il2cpp domain（幂等）：未 attach 线程在游戏 GC 期间调托管 API 会偶发崩溃
+    SLSDK_EnsureThreadAttached();
     // SDK 延迟初始化：游戏启动早期 HotUpdate.dll 未加载，每 2 秒重试
     static ULONGLONG s_last_sdk_try = 0;
     if (!SLSDK_Ready())
@@ -91,6 +97,8 @@ void PanelFrameUpdate()
     {
         // SDK 就绪后安装 Detours hook（无限食物/时间冻结/背包尺寸等，幂等）
         SLSDK_InstallHooks();
+        // 批次6 hook（烹饪时间/暴露事件，幂等；dexter.sl 功能）
+        SLSDK_InstallBatch6Hooks();
     }
 
     // 锁定类功能每帧统一生效（与当前打开的 tab 无关，对齐 mod CheatGUI.Update）

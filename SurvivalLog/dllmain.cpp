@@ -3,19 +3,18 @@
 #include "includes.h"
 #include "DXhook/d3d11hook.h"
 #include "DXhook/dev/Console.h"
-
 DWORD WINAPI MainThread(HMODULE hModule, LPVOID)
 {
     LOG_INFO("SurvivalLog DLL injected");
-
+    while (!FindWindowA("UnityWndClass", nullptr))
+        Sleep(5 * 1000);
+    Sleep(3 * 1000);
     if (!InitD3D11Hook())
     {
         LOG_ERROR("Failed to initialize D3D11 hook");
-        //CleanupConsole();
         FreeLibraryAndExitThread(hModule, 1);
         return 1;
     }
-
     LOG_INFO("D3D11 hook initialized. Press INS / HOME to open menu");
     return 0;
 }

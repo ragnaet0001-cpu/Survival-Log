@@ -3,6 +3,9 @@
 #include "../DXhook/dev/logger.h"
 #include <string.h>
 #include <stdio.h>
+#include <map>
+#include <unordered_set>
+#include <cmath>
 
 // ============================================================
 // SurvivalLogSDK.cpp - 实现
@@ -439,6 +442,7 @@ bool SLSDK_Ready()
 {
     return g_hotUpdateImage && g_klassAttr && g_IL2CPP;
 }
+
 
 // ---------- 实例获取 ----------
 
@@ -1285,6 +1289,8 @@ namespace
         return true;
     }
 }
+
+
 
 // ---------- 物品 / 背包 ----------
 bool SLSDK_AddItem(int32_t configId, int32_t count, int32_t* addedOut)
@@ -4008,78 +4014,122 @@ namespace
     // 背包尺寸（mod BagSizePatch Postfix：期望尺寸 < 原始时取大）
     static V2I Hook_GetOwnerBagSize(void* self, int64_t ownerId)
     {
-        V2I r = CALL_ORIGIN(Hook_GetOwnerBagSize, self, ownerId);
-        if (g_desiredBagCols > 0 && g_desiredBagRows > 0 && ownerId == GetPlayerId())
+        __try
         {
-            if (r.x < g_desiredBagCols)
-                r.x = g_desiredBagCols;
-            if (r.y < g_desiredBagRows)
-                r.y = g_desiredBagRows;
+            V2I r = CALL_ORIGIN(Hook_GetOwnerBagSize, self, ownerId);
+            if (g_desiredBagCols > 0 && g_desiredBagRows > 0 && ownerId == GetPlayerId())
+            {
+                if (r.x < g_desiredBagCols)
+                    r.x = g_desiredBagCols;
+                if (r.y < g_desiredBagRows)
+                    r.y = g_desiredBagRows;
+            }
+            return r;
         }
-        return r;
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            V2I r = { 0, 0 };
+            return r;
+        }
     }
 
     // 无限食物：Life>0 的物品重置 StartTime 并跳过腐烂处理（mod InfiniteFoodRotPatch Prefix）
     static void Hook_CheckAndProcessRot(void* self, void* item, void* config, int32_t currentHour)
     {
-        if (g_infiniteFoodShelfLife && item && config)
+        __try
         {
-            Config_Item_o* cfg = (Config_Item_o*)config;
-            if (cfg->Life > 0)
+            if (g_infiniteFoodShelfLife && item && config)
             {
-                ((ItemData_o*)item)->StartTime = currentHour;
-                return;
+                Config_Item_o* cfg = (Config_Item_o*)config;
+                if (cfg->Life > 0)
+                {
+                    ((ItemData_o*)item)->StartTime = currentHour;
+                    return;
+                }
             }
+            CALL_ORIGIN(Hook_CheckAndProcessRot, self, item, config, currentHour);
         }
-        CALL_ORIGIN(Hook_CheckAndProcessRot, self, item, config, currentHour);
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
     }
 
     // 时间冻结拦截 ×3（mod CostTimePatch / CostTimeCountDownPatch / CostTimeCountUpPatch）
     static void Hook_GameTimeCostTime(void* self, float seconds, bool silent)
     {
-        if (g_frozenOverride)
+        __try
         {
-            if (!g_logGtmBlocked) { g_logGtmBlocked = true; LOG_INFO("[Freeze] GTM.CostTime blocked"); }
-            return;
+            if (g_frozenOverride)
+            {
+                if (!g_logGtmBlocked) { g_logGtmBlocked = true; LOG_INFO("[Freeze] GTM.CostTime blocked"); }
+                return;
+            }
+            CALL_ORIGIN(Hook_GameTimeCostTime, self, seconds, silent);
         }
-        CALL_ORIGIN(Hook_GameTimeCostTime, self, seconds, silent);
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
     }
     static void Hook_CountDownCostTime(void* self, float seconds, bool silent)
     {
-        if (g_frozenOverride)
+        __try
         {
-            if (!g_logCdBlocked) { g_logCdBlocked = true; LOG_INFO("[Freeze] CD.CostTime blocked"); }
-            return;
+            if (g_frozenOverride)
+            {
+                if (!g_logCdBlocked) { g_logCdBlocked = true; LOG_INFO("[Freeze] CD.CostTime blocked"); }
+                return;
+            }
+            CALL_ORIGIN(Hook_CountDownCostTime, self, seconds, silent);
         }
-        CALL_ORIGIN(Hook_CountDownCostTime, self, seconds, silent);
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
     }
     static void Hook_CountUpCostTime(void* self, float seconds, bool silent)
     {
-        if (g_frozenOverride)
+        __try
         {
-            if (!g_logCuBlocked) { g_logCuBlocked = true; LOG_INFO("[Freeze] CU.CostTime blocked"); }
-            return;
+            if (g_frozenOverride)
+            {
+                if (!g_logCuBlocked) { g_logCuBlocked = true; LOG_INFO("[Freeze] CU.CostTime blocked"); }
+                return;
+            }
+            CALL_ORIGIN(Hook_CountUpCostTime, self, seconds, silent);
         }
-        CALL_ORIGIN(Hook_CountUpCostTime, self, seconds, silent);
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
     }
 
     // 冻结时强制 IsClockFrozen（mod TimeUpdatePatch Prefix）
     static void Hook_GameTimeUpdate(void* self, float dt, float udt)
     {
-        if (g_frozenOverride)
-            ((GameTimeManager_o*)self)->_IsClockFrozen = true;
-        CALL_ORIGIN(Hook_GameTimeUpdate, self, dt, udt);
+        __try
+        {
+            if (g_frozenOverride)
+                ((GameTimeManager_o*)self)->_IsClockFrozen = true;
+            CALL_ORIGIN(Hook_GameTimeUpdate, self, dt, udt);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
     }
 
     // 扣小时动作拦截（mod CostHourPatch Prefix，static 方法）
     static void Hook_SendAction(int32_t costHour)
     {
-        if (g_frozenOverride)
+        __try
         {
-            if (!g_logSendBlocked) { g_logSendBlocked = true; LOG_INFO("[Freeze] SendAction blocked"); }
-            return;
+            if (g_frozenOverride)
+            {
+                if (!g_logSendBlocked) { g_logSendBlocked = true; LOG_INFO("[Freeze] SendAction blocked"); }
+                return;
+            }
+            CALL_ORIGIN(Hook_SendAction, costHour);
         }
-        CALL_ORIGIN(Hook_SendAction, costHour);
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
     }
 }
 
@@ -4164,85 +4214,176 @@ namespace
     // ---------- GetShelfLifeText hooks（static：无 self，返回 string=Il2CppString*） ----------
     static Il2CppString* Hook_GetShelfLifeText_BackpackUI(void* config, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+        __try
+        {
+            if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+                return g_infinityString;
+            return CALL_ORIGIN(Hook_GetShelfLifeText_BackpackUI, config, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return g_infinityString;
-        return CALL_ORIGIN(Hook_GetShelfLifeText_BackpackUI, config, item, hours);
+        }
     }
     static Il2CppString* Hook_GetShelfLifeText_Brew(void* config, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+        __try
+        {
+            if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+                return g_infinityString;
+            return CALL_ORIGIN(Hook_GetShelfLifeText_Brew, config, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return g_infinityString;
-        return CALL_ORIGIN(Hook_GetShelfLifeText_Brew, config, item, hours);
+        }
     }
     static Il2CppString* Hook_GetShelfLifeText_Cooking(void* config, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+        __try
+        {
+            if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+                return g_infinityString;
+            return CALL_ORIGIN(Hook_GetShelfLifeText_Cooking, config, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return g_infinityString;
-        return CALL_ORIGIN(Hook_GetShelfLifeText_Cooking, config, item, hours);
+        }
     }
     static Il2CppString* Hook_GetShelfLifeText_RatCage(void* config, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+        __try
+        {
+            if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+                return g_infinityString;
+            return CALL_ORIGIN(Hook_GetShelfLifeText_RatCage, config, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return g_infinityString;
-        return CALL_ORIGIN(Hook_GetShelfLifeText_RatCage, config, item, hours);
+        }
     }
     static Il2CppString* Hook_GetShelfLifeText_ShopUI(void* config, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+        __try
+        {
+            if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+                return g_infinityString;
+            return CALL_ORIGIN(Hook_GetShelfLifeText_ShopUI, config, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return g_infinityString;
-        return CALL_ORIGIN(Hook_GetShelfLifeText_ShopUI, config, item, hours);
+        }
     }
     static Il2CppString* Hook_GetShelfLifeText_TradeUI(void* config, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+        __try
+        {
+            if (g_infiniteFoodShelfLife && config && ((Config_Item_o*)config)->Life > 0)
+                return g_infinityString;
+            return CALL_ORIGIN(Hook_GetShelfLifeText_TradeUI, config, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return g_infinityString;
-        return CALL_ORIGIN(Hook_GetShelfLifeText_TradeUI, config, item, hours);
+        }
     }
 
     // ---------- IsItemExpired hooks（static：返回 bool） ----------
     static bool Hook_IsItemExpired_BackpackUI(int32_t configLife, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife)
+        __try
+        {
+            if (g_infiniteFoodShelfLife)
+                return false;
+            return CALL_ORIGIN(Hook_IsItemExpired_BackpackUI, configLife, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return false;
-        return CALL_ORIGIN(Hook_IsItemExpired_BackpackUI, configLife, item, hours);
+        }
     }
     static bool Hook_IsItemExpired_Brew(int32_t configLife, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife)
+        __try
+        {
+            if (g_infiniteFoodShelfLife)
+                return false;
+            return CALL_ORIGIN(Hook_IsItemExpired_Brew, configLife, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return false;
-        return CALL_ORIGIN(Hook_IsItemExpired_Brew, configLife, item, hours);
+        }
     }
     static bool Hook_IsItemExpired_Cooking(int32_t configLife, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife)
+        __try
+        {
+            if (g_infiniteFoodShelfLife)
+                return false;
+            return CALL_ORIGIN(Hook_IsItemExpired_Cooking, configLife, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return false;
-        return CALL_ORIGIN(Hook_IsItemExpired_Cooking, configLife, item, hours);
+        }
     }
     static bool Hook_IsItemExpired_RatCage(int32_t configLife, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife)
+        __try
+        {
+            if (g_infiniteFoodShelfLife)
+                return false;
+            return CALL_ORIGIN(Hook_IsItemExpired_RatCage, configLife, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return false;
-        return CALL_ORIGIN(Hook_IsItemExpired_RatCage, configLife, item, hours);
+        }
     }
     static bool Hook_IsItemExpired_ShopUI(int32_t configLife, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife)
+        __try
+        {
+            if (g_infiniteFoodShelfLife)
+                return false;
+            return CALL_ORIGIN(Hook_IsItemExpired_ShopUI, configLife, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return false;
-        return CALL_ORIGIN(Hook_IsItemExpired_ShopUI, configLife, item, hours);
+        }
     }
     static bool Hook_IsItemExpired_TradeUI(int32_t configLife, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife)
+        __try
+        {
+            if (g_infiniteFoodShelfLife)
+                return false;
+            return CALL_ORIGIN(Hook_IsItemExpired_TradeUI, configLife, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return false;
-        return CALL_ORIGIN(Hook_IsItemExpired_TradeUI, configLife, item, hours);
+        }
     }
 
     // ---------- GetShelfLifeDaysRaw（仅 BackpackUI，static：返回 float） ----------
     static float Hook_GetShelfLifeDaysRaw(int32_t configLife, void* item, float hours)
     {
-        if (g_infiniteFoodShelfLife && configLife > 0)
+        __try
+        {
+            if (g_infiniteFoodShelfLife && configLife > 0)
+                return (float)configLife / 24.0f;
+            return CALL_ORIGIN(Hook_GetShelfLifeDaysRaw, configLife, item, hours);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
             return (float)configLife / 24.0f;
-        return CALL_ORIGIN(Hook_GetShelfLifeDaysRaw, configLife, item, hours);
+        }
     }
 }
 
@@ -4308,4 +4449,345 @@ bool SLSDK_InstallFoodDisplayHooks()
     }
     LOG_INFO("SurvivalLog food display hooks installed: %d/13", installed);
     return installed > 0;
+}
+
+
+// ============================================================
+// 批次6：dexter.sl（3DM mod）功能迁移 —— 倍率类（保留项）
+// 对应 C# mod dexter.sl v1.5.3：ConfigActionPatch(动作速度) / CookingDurationPatch(烹饪时间) /
+//   ConfigInstancePatch+ExposureDetour(暴露速率)
+// 实现：Config_Action 配置对象直写（Get_Config_Action hook 返回时应用，不干预进行中动作字段）+
+//       Detours hook（OnCookingStart/AddExposure）
+// 全免更：类按名解析，字段偏移 ResolveFieldOffset 动态解析（offsets.h 兜底）
+// Config_Action（动作配置；During 为动作时长秒数，ActionType==2 跳过缩放）
+struct Config_Action_o : Il2CppObject
+{
+    int32_t ID;            // +0x10
+    void* Name;            // +0x18
+    void* Name_Local;      // +0x20
+    int32_t ActionType;    // +0x40
+    float During;          // +0x48
+};
+
+// ============================================================
+namespace
+{
+    bool g_modBatch6Inited = false;
+    bool g_batch6HooksInstalled = false;
+    Il2CppClass* g_klassConfigAction = nullptr;
+    Il2CppClass* g_klassFurniture = nullptr;
+    Il2CppClass* g_klassCookingStartData = nullptr;
+
+    // 动作速度倍率（mod ConfigActionPatch：During / N，ActionType==2 跳过）
+    bool g_actionSpeedOn = false;
+    int32_t g_actionSpeedMult = 1;
+    std::map<void*, float> g_actionOrigDuring;
+
+    // 烹饪时间倍率（mod CookingDurationPatch：OnCookingStart 参数 CookDuration / N）
+    bool g_cookTimeOn = false;
+    int32_t g_cookTimeMult = 1;
+
+    // 暴露增长速率倍率（mod ConfigInstancePatch + ExposureDetour）
+    bool g_exposureRateOn = false;
+    float g_exposureRate = 1.0f;
+    float g_origTimeExposure = -1.0f;
+    float g_origMoveExposure = -1.0f;
+    void* g_exposureOwner = nullptr;
+
+    static bool ModBatch6Init()
+    {
+        if (g_modBatch6Inited)
+            return true;
+        if (!ModItemsInit() || !ModBatch2Init() || !ModBatch3Init())
+            return false;
+        __try
+        {
+            g_klassConfigAction = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate", "Config_Action");
+            g_klassFurniture = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate.Battle.Logic", "Furniture");
+            g_klassCookingStartData = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate", "CookingStartData");
+            if (!g_klassConfigAction || !g_klassFurniture || !g_klassExploreManager || !g_klassCookingStartData)
+            {
+                LOG_ERROR("ModBatch6 class NULL: Action=%p Furniture=%p Explore=%p CookData=%p",
+                    g_klassConfigAction, g_klassFurniture, g_klassExploreManager, g_klassCookingStartData);
+                return false;
+            }
+            OFF_CM_ActionDict = ResolveFieldOffset(g_klassConfigManager, "_Config_Action_Dict", OFF_CM_ActionDict);
+            OFF_CA_ActionType = ResolveFieldOffset(g_klassConfigAction, "<ActionType>k__BackingField", OFF_CA_ActionType);
+            OFF_CA_During = ResolveFieldOffset(g_klassConfigAction, "<During>k__BackingField", OFF_CA_During);
+            OFF_CD_CookDuration = ResolveFieldOffset(g_klassCookingStartData, "<CookDuration>k__BackingField", OFF_CD_CookDuration);
+            g_modBatch6Inited = true;
+            LOG_INFO("Mod SDK batch6 ready (dexter.sl 倍率功能)");
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            LOG_ERROR("ModBatch6Init exception 0x%08X", GetExceptionCode());
+            return false;
+        }
+    }
+
+
+
+    // 单个动作应用倍率（mod ConfigActionPatch.ApplyTo：During / N，ActionType==2 跳过）
+    static void ApplyActionSpeedToOne(Config_Action_o* cfg)
+    {
+        if (!cfg)
+            return;
+        uint8_t* p = (uint8_t*)cfg;
+        if (*(int32_t*)(p + OFF_CA_ActionType) == 2) // mod：类型 2 跳过
+            return;
+        auto it = g_actionOrigDuring.find(cfg);
+        if (it == g_actionOrigDuring.end())
+        {
+            if (g_actionOrigDuring.size() > 1024)
+                g_actionOrigDuring.clear(); // 防异常累积
+            g_actionOrigDuring[cfg] = *(float*)(p + OFF_CA_During);
+            it = g_actionOrigDuring.find(cfg);
+        }
+        float orig = it->second;
+        *(float*)(p + OFF_CA_During) = (g_actionSpeedMult > 0) ? (orig / (float)g_actionSpeedMult) : orig;
+    }
+
+}
+
+
+
+
+
+// ---------- 动作速度倍率（mod ConfigActionPatch：During / N，ActionType==2 跳过） ----------
+bool SLSDK_SetActionSpeedMultiplier(int32_t mult)
+{
+    if (!ModBatch6Init())
+        return false;
+    g_actionSpeedMult = mult < 1 ? 1 : mult;
+    g_actionSpeedOn = true;
+    SLSDK_ApplyActionSpeedMultiplier();
+    return true;
+}
+
+void SLSDK_ResetActionSpeedMultiplier()
+{
+    if (!g_actionSpeedOn)
+        return;
+    if (!ModBatch6Init())
+        return;
+    __try
+    {
+        for (auto& kv : g_actionOrigDuring)
+        {
+            if (!kv.first)
+                continue;
+            *(float*)((uint8_t*)kv.first + OFF_CA_During) = kv.second;
+        }
+        g_actionOrigDuring.clear();
+        g_actionSpeedOn = false;
+        g_actionSpeedMult = 1;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
+void SLSDK_ApplyActionSpeedMultiplier()
+{
+    if (!g_actionSpeedOn || !ModBatch6Init())
+        return;
+    __try
+    {
+        // 仅手动调用（Set 时一次）：遍历全部动作配置应用倍率。
+        // 注意：不能每帧调用！游戏进行中动作会把 Config_Action.During 当倒计时字段递减，
+        // 每帧覆盖会把倒计时重置回原值导致动作卡死（dexter.sl 只在 Get_Config_Action 返回时应用一次）。
+        // 新发起的动作由 Hook_GetConfigAction 自动应用。
+        Il2CppObject* cm = GetConfigManager();
+        if (!cm)
+            return;
+        void* dict = *(void**)((uint8_t*)cm + OFF_CM_ActionDict); // ConfigManager._Config_Action_Dict
+        Dictionary_o* d = (Dictionary_o*)dict;
+        if (!d || !d->_entries || d->_count <= 0 || d->_count > 100000)
+            return;
+        uint8_t* entries = (uint8_t*)d->_entries + OFF_ARRAY_DATA;
+        int32_t countBase = d->_count;
+        void* entriesBase = d->_entries;
+        for (int32_t i = 0; i < d->_count; i++)
+        {
+            // 配置热重载防护：遍历中字典被替换/清空则放弃本次（防悬垂 entries）
+            if ((i & 63) == 0 && (d->_entries != entriesBase || d->_count != countBase))
+                break;
+            uint8_t* entry = entries + (size_t)i * 24;
+            void* val = *(void**)(entry + 16);
+            if (!val)
+                continue;
+            ApplyActionSpeedToOne((Config_Action_o*)val);
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
+// ---------- 烹饪时间倍率（mod CookingDurationPatch：OnCookingStart 参数 CookDuration / N，下限 1s） ----------
+bool SLSDK_SetCookingTimeMultiplier(int32_t mult)
+{
+    if (!ModBatch6Init())
+        return false;
+    g_cookTimeMult = mult < 1 ? 1 : mult;
+    g_cookTimeOn = true;
+    return true;
+}
+
+void SLSDK_ResetCookingTimeMultiplier()
+{
+    g_cookTimeOn = false;
+    g_cookTimeMult = 1;
+}
+
+// ---------- 暴露增长速率倍率（mod ConfigInstancePatch + ExposureDetour） ----------
+bool SLSDK_SetExposureRate(float rate)
+{
+    if (!ModBatch6Init())
+        return false;
+    g_exposureRate = rate < 0.01f ? 0.01f : (rate > 1.0f ? 1.0f : rate);
+    g_exposureRateOn = true;
+    SLSDK_ApplyExposureRate();
+    return true;
+}
+
+void SLSDK_ResetExposureRate()
+{
+    if (!g_exposureRateOn)
+        return;
+    if (!ModBatch6Init())
+        return;
+    __try
+    {
+        ExploreManager_o* ex = (ExploreManager_o*)GetWorldManager(OFF_BLW_ExploreManager);
+        if (ex && g_exposureOwner == ex && g_origTimeExposure >= 0.0f)
+        {
+            ex->TimeExposure = g_origTimeExposure;
+            ex->MoveExposure = g_origMoveExposure;
+        }
+        g_exposureOwner = nullptr;
+        g_origTimeExposure = -1.0f;
+        g_origMoveExposure = -1.0f;
+        g_exposureRateOn = false;
+        g_exposureRate = 1.0f;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
+void SLSDK_ApplyExposureRate()
+{
+    if (!g_exposureRateOn || !ModBatch6Init())
+        return;
+    __try
+    {
+        ExploreManager_o* ex = (ExploreManager_o*)GetWorldManager(OFF_BLW_ExploreManager);
+        if (!ex)
+            return;
+        if (g_exposureOwner != ex)
+        {
+            g_exposureOwner = ex;
+            g_origTimeExposure = ex->TimeExposure;
+            g_origMoveExposure = ex->MoveExposure;
+        }
+        if (g_exposureRate >= 0.999f)
+        {
+            if (g_origTimeExposure >= 0.0f)
+            {
+                ex->TimeExposure = g_origTimeExposure;
+                ex->MoveExposure = g_origMoveExposure;
+            }
+            return;
+        }
+        ex->TimeExposure = g_origTimeExposure * g_exposureRate;
+        ex->MoveExposure = g_origMoveExposure * g_exposureRate;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
+// ---------- 批次6 hook（动作速度 + 烹饪时间 + 暴露事件） ----------
+// 动作速度（mod ConfigActionPatch Postfix：Get_Config_Action 返回时应用一次，不干预进行中动作的字段）
+static void* Hook_GetConfigAction(void* self, int32_t id)
+{
+    void* cfg = nullptr;
+    __try
+    {
+        cfg = CALL_ORIGIN(Hook_GetConfigAction, self, id);
+        if (cfg && g_actionSpeedOn && g_actionSpeedMult > 1)
+            ApplyActionSpeedToOne((Config_Action_o*)cfg);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+    return cfg;
+}
+
+static void Hook_OnCookingStart(void* self, void* data)
+{
+    __try
+    {
+        if (g_cookTimeOn && g_cookTimeMult > 1 && data)
+        {
+            float* p = (float*)((uint8_t*)data + OFF_CD_CookDuration);
+            float v = *p;
+            float nv = v / (float)g_cookTimeMult;
+            if (nv < 1.0f)
+                nv = 1.0f;
+            *p = nv;
+        }
+        CALL_ORIGIN(Hook_OnCookingStart, self, data);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
+static void Hook_AddExposure(void* self, int32_t value)
+{
+    __try
+    {
+        if (g_exposureRateOn && g_exposureRate < 0.999f)
+        {
+            double scaled = (double)value * (double)g_exposureRate;
+            value = (int32_t)(scaled >= 0.0 ? (int32_t)(scaled + 0.5) : (int32_t)(scaled - 0.5)); // AwayFromZero
+        }
+        CALL_ORIGIN(Hook_AddExposure, self, value);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
+bool SLSDK_InstallBatch6Hooks()
+{
+    if (g_batch6HooksInstalled)
+        return true;
+    if (!ModBatch6Init())
+        return false;
+    void* pGetCfgAction = GetMethodPtr(g_klassConfigManager, "Get_Config_Action", 1);
+    void* pCook = GetMethodPtr(g_klassFurniture, "OnCookingStart", 1);
+    void* pExpo = GetMethodPtr(g_klassExploreManager, "AddExposure", 1);
+    if (!pGetCfgAction || !pCook || !pExpo)
+    {
+        LOG_ERROR("Batch6 hook resolve failed: act=%p cook=%p expo=%p", pGetCfgAction, pCook, pExpo);
+        return false;
+    }
+    HookManager::HookFunction(pGetCfgAction, Hook_GetConfigAction);
+    HookManager::HookFunction(pCook, Hook_OnCookingStart);
+    HookManager::HookFunction(pExpo, Hook_AddExposure);
+    g_batch6HooksInstalled = true;
+    LOG_INFO("SurvivalLog batch6 hooks installed (Get_Config_Action/OnCookingStart/AddExposure)");
+    return true;
+}
+
+
+// ---------- 渲染线程 attach（幂等）：未 attach 线程在游戏 GC（stop-the-world）期间调托管 API 会偶发崩溃 ----------
+void SLSDK_EnsureThreadAttached()
+{
+    if (g_domain && g_IL2CPP && g_IL2CPP->thread_attach)
+        g_IL2CPP->thread_attach(g_domain);
 }

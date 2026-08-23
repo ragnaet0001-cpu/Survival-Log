@@ -85,5 +85,32 @@ void TabMisc()
             ImGui::SameLine();
             if (SLSDK_InfiniteFoodEnabled())
                 ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), (const char *)u8"[已开启]");
+
+            // dexter.sl 倍率（动作速度/烹饪时间/暴露增长）
+            ImGui::Separator();
+            static int act_speed_mult = 1;
+            ImGui::SetNextItemWidth(110);
+            ImGui::SliderInt((const char *)u8"动作速度倍率", &act_speed_mult, 1, 20);
+            if (ImGui::Button((const char *)u8"应用##actspeed"))
+                SLSDK_SetActionSpeedMultiplier(act_speed_mult);
+            ImGui::SameLine();
+            if (ImGui::Button((const char *)u8"还原##actspeed"))
+                SLSDK_ResetActionSpeedMultiplier();
+            static int cook_mult = 10;
+            ImGui::SetNextItemWidth(110);
+            ImGui::SliderInt((const char *)u8"烹饪时间倍率", &cook_mult, 1, 50);
+            if (ImGui::Button((const char *)u8"应用##cook"))
+                SLSDK_SetCookingTimeMultiplier(cook_mult);
+            ImGui::SameLine();
+            if (ImGui::Button((const char *)u8"还原##cook"))
+                SLSDK_ResetCookingTimeMultiplier();
+            static float exp_rate = 1.0f;
+            ImGui::SetNextItemWidth(110);
+            ImGui::SliderFloat((const char *)u8"暴露增长倍率", &exp_rate, 0.05f, 1.0f, "%.2f");
+            if (ImGui::Button((const char *)u8"应用##exprate"))
+                SLSDK_SetExposureRate(exp_rate);
+            ImGui::SameLine();
+            if (ImGui::Button((const char *)u8"还原##exprate"))
+                SLSDK_ResetExposureRate();
             return;
 }
