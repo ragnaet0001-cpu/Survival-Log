@@ -127,3 +127,15 @@ inline size_t OFF_CM_ActionDict = 0x30;      // ConfigManager._Config_Action_Dic
 inline size_t OFF_CA_ActionType = 0x40;      // Config_Action.ActionType（Int32）
 inline size_t OFF_CA_During = 0x48;          // Config_Action.During（Single）
 inline size_t OFF_CD_CookDuration = 0x18;    // CookingStartData.CookDuration（Single）
+
+// ---------- 批次8：PowerManager（电力：发电量/储电倍率，mod PowerManagerPatch） ----------
+inline size_t OFF_PM_CurPowerValue   = 0x34;  // PowerManager.<CurPowerValue>k__BackingField（Int32）
+inline size_t OFF_PM_MaxPowerValue   = 0x38;  // PowerManager.<MaxPowerValue>k__BackingField（Int32）
+inline size_t OFF_PM_TotalCapacity   = 0x40;  // PowerManager.<TotalCapacity>k__BackingField（Single）
+inline size_t OFF_PM_TotalGeneration = 0x44;  // PowerManager.<TotalGeneration>k__BackingField（Single）
+inline size_t OFF_BLW_PowerManager   = 0x188; // BattleLogicWorld.<_PowerManager>k__BackingField（PowerManager*）
+
+// ---------- 批次9：Zombie（丧尸/尸潮击杀） ----------
+inline size_t OFF_ZOMBIE_InstanceId = 0x10;  // BaseEntity.InstanceId（与 OFF_OBJ_HEADER 同）
+inline size_t OFF_ZOMBIE_CurrentHP  = 0x74;  // Zombie.<CurrentHP>k__BackingField（Int32）
+inline size_t OFF_ZOMBIE_MaxHP      = 0x78;  // Zombie.<MaxHP>k__BackingField（Int32）

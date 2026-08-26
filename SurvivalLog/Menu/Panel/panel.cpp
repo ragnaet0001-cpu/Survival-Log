@@ -99,6 +99,8 @@ void PanelFrameUpdate()
         SLSDK_InstallHooks();
         // 批次6 hook（烹饪时间/暴露事件，幂等；dexter.sl 功能）
         SLSDK_InstallBatch6Hooks();
+        // 批次8 hook（发电量/储电倍率，幂等；mod PowerManagerPatch）
+        SLSDK_InstallPowerHooks();
     }
 
     // 锁定类功能每帧统一生效（与当前打开的 tab 无关，对齐 mod CheatGUI.Update）
@@ -139,7 +141,8 @@ void RenderPanel()
         (const char *)u8"熟练度",
         (const char *)u8"设施",
         (const char *)u8"Buff",
-        (const char *)u8"关于",
+        (const char *)u8"丧尸",
+        (const char*)u8"关于",
     };
 
     ImGui::BeginChild((const char *)u8"SurvivalLog_Button", {150.0f, Windowsize.y - 40.0f}, true);
@@ -173,7 +176,8 @@ void RenderPanel()
         TabProficiency, // 5 熟练度
         TabFacilities,  // 6 设施
         TabBuffs,       // 7 Buff
-        TabAbout,       // 8 关于
+        TabZombie,      // 8 丧尸
+        TabAbout,       // 9 关于
     };
 
     ImGui::BeginChild("##SurvivalLog_Content", {Windowsize.x - 180.0f, Windowsize.y - 40.0f}, true);

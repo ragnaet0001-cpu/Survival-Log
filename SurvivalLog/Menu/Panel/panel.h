@@ -21,5 +21,6 @@ void TabProficiency();
 void TabFacilities();
 void TabBuffs();
 void TabAbout();
+void TabZombie();
 
 extern inline bool show_window = true;

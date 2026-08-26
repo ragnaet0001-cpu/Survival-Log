@@ -112,5 +112,20 @@ void TabMisc()
             ImGui::SameLine();
             if (ImGui::Button((const char *)u8"还原##exprate"))
                 SLSDK_ResetExposureRate();
+
+            // 电力倍率（mod PowerManagerPatch：发电量/储电；应用=开启, 还原=关闭(倍率=1)）
+            ImGui::Separator();
+            static float gen_mult = 1.0f;
+            static float cap_mult = 1.0f;
+            ImGui::SetNextItemWidth(110);
+            ImGui::SliderFloat((const char *)u8"发电量倍率", &gen_mult, 1.0f, 200.0f, "%.0f");
+            ImGui::SetNextItemWidth(110);
+            ImGui::SliderFloat((const char *)u8"储电倍率", &cap_mult, 1.0f, 200.0f, "%.0f");
+            if (ImGui::Button((const char *)u8"应用##power"))
+                SLSDK_SetPowerMultiplier(gen_mult, cap_mult);
+            ImGui::SameLine();
+            if (ImGui::Button((const char *)u8"还原##power"))
+                SLSDK_ResetPowerMultiplier();
+
             return;
 }

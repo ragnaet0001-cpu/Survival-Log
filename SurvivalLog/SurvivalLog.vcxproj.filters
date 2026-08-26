@@ -143,6 +143,9 @@
     <ClCompile Include="Menu\Panel\Tabs\TabAbout.cpp">
       <Filter>Menu\Panel\Tabs</Filter>
     </ClCompile>
+    <ClCompile Include="Menu\Panel\Tabs\TabZombie.cpp">
+      <Filter>Menu\Panel\Tabs</Filter>
+    </ClCompile>
     <ClCompile Include="Menu\Panel\Tabs\TabAttributes.cpp">
       <Filter>Menu\Panel\Tabs</Filter>
     </ClCompile>

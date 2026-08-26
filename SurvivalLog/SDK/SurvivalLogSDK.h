@@ -386,6 +386,19 @@ struct Dictionary_o : Il2CppObject
     int32_t _version;    // +0x2C
 };
 
+// PowerManager：电力管理器（挂在 BattleLogicWorld._PowerManager +0x188；mod PowerManagerPatch）
+struct PowerManager_o : BaseEntity_o
+{
+    bool IsLocked;            // +0x30
+    int32_t CurPowerValue;    // +0x34
+    int32_t MaxPowerValue;    // +0x38
+    float CurrentStoredPower; // +0x3C
+    float TotalCapacity;      // +0x40
+    float TotalGeneration;    // +0x44
+    float TotalConsumption;   // +0x48
+    bool IsAllPowered;        // +0x4C
+};
+
 // ---------- 接口 ----------
 
 // 初始化 SDK（幂等；HotUpdate.dll 未加载时返回 false，可稍后重试）
@@ -650,3 +663,24 @@ void SLSDK_ApplyExposureRate(); // 每帧保持
 bool SLSDK_InstallBatch6Hooks();
 // 当前线程 attach 到 il2cpp domain（幂等；渲染线程每帧调用，防 GC 期崩溃）
 void SLSDK_EnsureThreadAttached();
+
+// ---------- 电力倍率（mod DexterSL_Extra.PowerManagerPatch：发电/储电） ----------
+// 安装 PowerManager 三处 hook（InjectPower/CalculateGeneration/CalculateCapacity；幂等，由 SLSDK_SetPowerMultiplier 自动调用）
+bool SLSDK_InstallPowerHooks();
+// 设置发电量/储电倍率（0.1~1000；传 1 关闭该档）；成功后自动 InstallPowerHooks
+bool SLSDK_SetPowerMultiplier(float genMult, float capMult);
+void SLSDK_ResetPowerMultiplier();
+
+// ---------- 丧尸（尸潮击杀，mod Zombie：TakeHpDamage） ----------
+typedef struct SLZombieView
+{
+    int64_t InstanceId; // BaseEntity.InstanceId
+    int32_t CurrentHP;  // Zombie.CurrentHP
+    int32_t MaxHP;      // Zombie.MaxHP
+} SLZombieView;
+// 枚举当前活体丧尸（遍历 AgentManager.agentList 按 Zombie 类过滤；返回条目数，-1 失败）
+int32_t SLSDK_GetZombies(SLZombieView* outItems, int32_t maxItems);
+// 击杀单个丧尸（按 InstanceId；调 Zombie.TakeHpDamage(999999)）
+bool SLSDK_KillZombie(int64_t instanceId);
+// 击杀全部丧尸（遍历所有 Zombie 调 TakeHpDamage(999999)；返回击杀数，-1 失败）
+int32_t SLSDK_KillAllZombies();

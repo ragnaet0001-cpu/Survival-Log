@@ -226,6 +226,7 @@ static Il2CppObject* GetSingletonInstance(Il2CppClass* klass)
     if (!klass || !g_IL2CPP)
         return nullptr;
     MethodInfo* mi = FindMethodInHierarchy(klass, "get_Instance", 0);
+   // LOG_INFO("g_miGetInstance:%p", mi);
     if (!mi)
         return nullptr;
     Il2CppException* exc = nullptr;
@@ -384,6 +385,7 @@ bool SLSDK_Init()
 
         // 拿各类 klass
         g_klassBattleLogicWorld = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate.Battle.Logic", "BattleLogicWorld");
+        LOG_INFO("g_klassBattleLogicWorld:%p", g_klassBattleLogicWorld);    
         g_klassAgentManager     = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate.Battle.Logic", "AgentManager");
         g_klassAttributeComponent = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate.Battle.Logic", "AttributeComponent");
         g_klassAttr             = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate.Battle.Logic", "Attr");
@@ -419,7 +421,8 @@ bool SLSDK_Init()
         g_miSyncAttr2UI = g_IL2CPP->class_get_method_from_name(g_klassAttributeComponent, "SyncAttr2UI", 1);
         g_miAddGold = FindMethodInHierarchy(g_klassLeadingRole, "AddGold", 1);
         g_miSyncGold = FindMethodInHierarchy(g_klassLeadingRole, "SyncGold", 1);
-
+        LOG_INFO("g_miAddGold:%p", g_miAddGold);
+        LOG_INFO("g_miSyncGold:%p", g_miSyncGold);
         LOG_INFO("SurvivalLog SDK ready (BattleLogicWorld/ReduxUISystem resolved)");
 
         // 解析动态字段偏移（失败降级用 fallback，不影响 SDK 使用）
@@ -2218,6 +2221,8 @@ static Il2CppObject* GetWorldManager(size_t fieldOffset)
     __try
     {
         BattleLogicWorld_o* world = (BattleLogicWorld_o*)GetSingletonInstance(g_klassBattleLogicWorld);
+        MethodInfo* mi = FindMethodInHierarchy(g_klassBattleLogicWorld, "get_Instance", 0);
+		//LOG_DEBUG("GetWorldManager offset=0x%zX world=%p get_Instance:%p", fieldOffset, world, mi ); 
         if (!world)
             return nullptr;
         return *(Il2CppObject**)((uint8_t*)world + fieldOffset);
@@ -3091,7 +3096,9 @@ bool SLSDK_UnlockAllCodex()
         Il2CppObject* codex = GetWorldManager(OFF_BLW_CodexManager);
         if (!codex || !g_miCodexUnlockAll)
             return false;
+        //LOG_INFO("g_miCodexUnlockAll:%p", g_miCodexUnlockAll);//GameCore.HotUpdate.Battle.Logic.CodexManager.GmUnlockAll 
         return InvokeOk(g_miCodexUnlockAll, codex, nullptr);
+       // return false;
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
@@ -3109,6 +3116,9 @@ bool SLSDK_UnlockAllAchievements()
         if (!am || !g_miAchieveUnlockAll)
             return false;
         return InvokeOk(g_miAchieveUnlockAll, am, nullptr);
+        //LOG_INFO("g_miAchieveUnlockAll:%p", g_miAchieveUnlockAll);//GameCore.HotUpdate.Battle.Logic.AchievementManager.GmUnlockAll 
+
+        //return false;   
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
@@ -4357,28 +4367,8 @@ bool SLSDK_InstallHooks()
     HookManager::HookFunction(pGameTimeUpdate, Hook_GameTimeUpdate);
     HookManager::HookFunction(pSendAction, Hook_SendAction);
     HookManager::HookFunction(pGetConfigBag, Hook_GetConfigBag);
-    size_t nHooks = HookManager::getHookList().size();
-    LOG_INFO("SurvivalLog hooks installed: %zu/8 in HookManager", nHooks);
-    // 验证 Detours 是否 patch 成功：入口应为 E9 (jmp rel32)；未 patch 则是原始 prologue
-    unsigned char* b1 = (unsigned char*)pGameTimeCostTime;
-    unsigned char* b2 = (unsigned char*)pCountDownCostTime;
-    unsigned char* b3 = (unsigned char*)pCountUpCostTime;
-    unsigned char* b4 = (unsigned char*)pGameTimeUpdate;
-    unsigned char* b5 = (unsigned char*)pSendAction;
-    unsigned char* b6 = (unsigned char*)pGetOwnerBagSize;
-    unsigned char* b7 = (unsigned char*)pCheckAndProcessRot;
-    unsigned char* b8 = (unsigned char*)pGetConfigBag;
-    LOG_INFO("[Hook] GTM.CostTime %p: %02X %02X %02X %02X %02X %02X %02X %02X", b1, b1[0], b1[1], b1[2], b1[3], b1[4], b1[5], b1[6], b1[7]);
-    LOG_INFO("[Hook] CD.CostTime  %p: %02X %02X %02X %02X %02X %02X %02X %02X", b2, b2[0], b2[1], b2[2], b2[3], b2[4], b2[5], b2[6], b2[7]);
-    LOG_INFO("[Hook] CU.CostTime  %p: %02X %02X %02X %02X %02X %02X %02X %02X", b3, b3[0], b3[1], b3[2], b3[3], b3[4], b3[5], b3[6], b3[7]);
-    LOG_INFO("[Hook] GTM.Update   %p: %02X %02X %02X %02X %02X %02X %02X %02X", b4, b4[0], b4[1], b4[2], b4[3], b4[4], b4[5], b4[6], b4[7]);
-    LOG_INFO("[Hook] SendAction   %p: %02X %02X %02X %02X %02X %02X %02X %02X", b5, b5[0], b5[1], b5[2], b5[3], b5[4], b5[5], b5[6], b5[7]);
-    LOG_INFO("[Hook] GetOwnerBag  %p: %02X %02X %02X %02X %02X %02X %02X %02X", b6, b6[0], b6[1], b6[2], b6[3], b6[4], b6[5], b6[6], b6[7]);
-    LOG_INFO("[Hook] CheckAndProc %p: %02X %02X %02X %02X %02X %02X %02X %02X", b7, b7[0], b7[1], b7[2], b7[3], b7[4], b7[5], b7[6], b7[7]);
-    LOG_INFO("[Hook] GetConfigBag %p: %02X %02X %02X %02X %02X %02X %02X %02X", b8, b8[0], b8[1], b8[2], b8[3], b8[4], b8[5], b8[6], b8[7]);
-    g_hooksInstalled = nHooks >= 8;
-    if (g_hooksInstalled)
-        SLSDK_InstallFoodDisplayHooks();
+
+    SLSDK_InstallFoodDisplayHooks();
     return g_hooksInstalled;
 }
 
@@ -5007,6 +4997,281 @@ bool SLSDK_InstallBatch6Hooks()
     g_batch6HooksInstalled = true;
     LOG_INFO("SurvivalLog batch6 hooks installed (Get_Config_Action/OnCookingStart/AddExposure)");
     return true;
+}
+
+
+// ============================================================
+// 批次8：电力倍率（mod DexterSL_Extra.PowerManagerPatch：发电量/储电倍率）
+// 目标（dump.cs / monodump 确认，全在 GameCore.HotUpdate.Battle.Logic.PowerManager）：
+//   InjectPower(float)                          -> 发电倍率（mod InjectPowerPatch.Prefix: amount *= gen）
+//   CalculateGeneration(List<Furniture>) -> float（发电倍率 Postfix: result *= gen; _TotalGeneration=result）
+//   CalculateCapacity(List<Furniture>)    -> float（储电倍率 Postfix: result *= cap; _TotalCapacity=result; _MaxPowerValue=clamp(result)）
+// 字段偏移（PowerManager 实例）：
+//   _CurPowerValue +0x34 / _MaxPowerValue +0x38 / _TotalCapacity +0x40 / _TotalGeneration +0x44
+// 实例：BattleLogicWorld.Instance -> +OFF_BLW_PowerManager(0x188)
+// ============================================================
+namespace
+{
+    bool g_modPowerInited = false;
+    bool g_powerHooksInstalled = false;
+    Il2CppClass* g_klassPowerManager = nullptr;
+
+    bool g_powerGenMultOn = false;
+    float g_powerGenMult = 1.0f;
+    bool g_powerCapMultOn = false;
+    float g_powerCapMult = 1.0f;
+
+    static bool ModPowerInit()
+    {
+        if (g_modPowerInited)
+            return true;
+        if (!ModItemsInit() || !ModBatch2Init())
+            return false;
+        __try
+        {
+            g_klassPowerManager = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate.Battle.Logic", "PowerManager");
+            if (!g_klassPowerManager)
+            {
+                LOG_ERROR("ModPower class NULL: PowerManager=%p", g_klassPowerManager);
+                return false;
+            }
+            OFF_PM_CurPowerValue   = ResolveFieldOffset(g_klassPowerManager, "<CurPowerValue>k__BackingField", OFF_PM_CurPowerValue);
+            OFF_PM_MaxPowerValue   = ResolveFieldOffset(g_klassPowerManager, "<MaxPowerValue>k__BackingField", OFF_PM_MaxPowerValue);
+            OFF_PM_TotalCapacity   = ResolveFieldOffset(g_klassPowerManager, "<TotalCapacity>k__BackingField", OFF_PM_TotalCapacity);
+            OFF_PM_TotalGeneration = ResolveFieldOffset(g_klassPowerManager, "<TotalGeneration>k__BackingField", OFF_PM_TotalGeneration);
+            g_modPowerInited = true;
+            LOG_INFO("Mod SDK power ready (PowerManager 发电/储电倍率)");
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            LOG_ERROR("ModPowerInit exception 0x%08X", GetExceptionCode());
+            return false;
+        }
+    }
+
+    // 发电倍率：InjectPower(amount) 的 amount *= gen（等价 mod InjectPowerPatch.Prefix）
+    static void Hook_PM_InjectPower(void* self, float amount)
+    {
+        __try
+        {
+            if (g_powerGenMultOn && fabsf(g_powerGenMult - 1.0f) > 0.001f)
+                amount *= g_powerGenMult;
+            CALL_ORIGIN(Hook_PM_InjectPower, self, amount);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
+    }
+
+    // 发电倍率：CalculateGeneration 返回值 *= gen（等价 mod CalculateGenerationPatch.Postfix）+ 写回 _TotalGeneration
+    static float Hook_PM_CalcGeneration(void* self, void* electricalFurnitures)
+    {
+        __try
+        {
+            float r = CALL_ORIGIN(Hook_PM_CalcGeneration, self, electricalFurnitures);
+            if (g_powerGenMultOn && fabsf(g_powerGenMult - 1.0f) > 0.001f)
+            {
+                r *= g_powerGenMult;
+                *(float*)((uint8_t*)self + OFF_PM_TotalGeneration) = r;
+            }
+            return r;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return 0.0f;
+        }
+    }
+
+    // 储电倍率：CalculateCapacity 返回值 *= cap（等价 mod CalculateCapacityPatch.Postfix）+ 写回 _TotalCapacity/_MaxPowerValue
+    static float Hook_PM_CalcCapacity(void* self, void* electricalFurnitures)
+    {
+        __try
+        {
+            float r = CALL_ORIGIN(Hook_PM_CalcCapacity, self, electricalFurnitures);
+            if (g_powerCapMultOn && fabsf(g_powerCapMult - 1.0f) > 0.001f)
+            {
+                r *= g_powerCapMult;
+                *(float*)((uint8_t*)self + OFF_PM_TotalCapacity) = r;
+                float cl = r < 0.0f ? 0.0f : (r > 2.1474836e9f ? 2.1474836e9f : r);
+                *(int32_t*)((uint8_t*)self + OFF_PM_MaxPowerValue) = (int32_t)cl;
+            }
+            return r;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return 0.0f;
+        }
+    }
+}
+
+bool SLSDK_InstallPowerHooks()
+{
+    if (g_powerHooksInstalled)
+        return true;
+    if (!ModPowerInit())
+        return false;
+    void* pInject = GetMethodPtr(g_klassPowerManager, "InjectPower", 1);
+    void* pGen    = GetMethodPtr(g_klassPowerManager, "CalculateGeneration", 1);
+    void* pCap    = GetMethodPtr(g_klassPowerManager, "CalculateCapacity", 1);
+    if (!pInject || !pGen || !pCap)
+    {
+        LOG_ERROR("Power hook resolve failed: inject=%p gen=%p cap=%p", pInject, pGen, pCap);
+        return false;
+    }
+    HookManager::HookFunction(pInject, Hook_PM_InjectPower);
+    HookManager::HookFunction(pGen,    Hook_PM_CalcGeneration);
+    HookManager::HookFunction(pCap,    Hook_PM_CalcCapacity);
+    g_powerHooksInstalled = true;
+    LOG_INFO("SurvivalLog power hooks installed (InjectPower/CalculateGeneration/CalculateCapacity)");
+    return true;
+}
+
+// 设置发电量/储电倍率（0.1~200；传 1 = 关闭该档）；成功后 hooks 已自动安装
+bool SLSDK_SetPowerMultiplier(float genMult, float capMult)
+{
+    if (!SLSDK_InstallPowerHooks())
+        return false;
+    g_powerGenMult = genMult;
+    g_powerCapMult = capMult;
+    g_powerGenMultOn = (genMult >= 1.0f && genMult <= 200.0f && fabsf(genMult - 1.0f) > 0.001f);
+    g_powerCapMultOn = (capMult >= 1.0f && capMult <= 200.0f && fabsf(capMult - 1.0f) > 0.001f);
+    LOG_INFO("[电力] 发电倍率=%s x%.2f | 储电倍率=%s x%.2f",
+        g_powerGenMultOn ? "ON" : "OFF", g_powerGenMult, g_powerCapMultOn ? "ON" : "OFF", g_powerCapMult);
+    return true;
+}
+
+void SLSDK_ResetPowerMultiplier()
+{
+    g_powerGenMultOn = false;
+    g_powerCapMultOn = false;
+    g_powerGenMult = 1.0f;
+    g_powerCapMult = 1.0f;
+}
+
+
+
+// ============================================================
+// 批次9：丧尸击杀（尸潮）
+// 目标：GameCore.HotUpdate.Battle.Logic.Zombie（:BaseAgent）
+//   TakeHpDamage(int) -> 扣值伤害，传大值(999999)=秒杀（走正常死亡流程）
+//   InstanceId +0x10 / CurrentHP +0x74 / MaxHP +0x78
+// 枚举：BattleLogicWorld.Instance -> AgentManager._agentList（List<BaseAgent>），按类 == Zombie 过滤
+// ============================================================
+namespace
+{
+    bool g_modZombieInited = false;
+    Il2CppClass* g_klassZombie = nullptr;
+    MethodInfo* g_miZombieTakeHpDamage = nullptr;
+
+    static bool ModZombieInit()
+    {
+        if (g_modZombieInited)
+            return true;
+        if (!ModItemsInit() || !ModBatch2Init())
+            return false;
+        __try
+        {
+            g_klassZombie = g_IL2CPP->class_from_name(g_hotUpdateImage, "GameCore.HotUpdate.Battle.Logic", "Zombie");
+            if (!g_klassZombie)
+            {
+                LOG_ERROR("ModZombie class NULL: Zombie=%p", g_klassZombie);
+                return false;
+            }
+            g_miZombieTakeHpDamage = g_IL2CPP->class_get_method_from_name(g_klassZombie, "TakeHpDamage", 1);
+            OFF_ZOMBIE_CurrentHP = ResolveFieldOffset(g_klassZombie, "<CurrentHP>k__BackingField", OFF_ZOMBIE_CurrentHP);
+            OFF_ZOMBIE_MaxHP     = ResolveFieldOffset(g_klassZombie, "<MaxHP>k__BackingField", OFF_ZOMBIE_MaxHP);
+            if (!g_miZombieTakeHpDamage)
+            {
+                LOG_ERROR("ModZombie method NULL: TakeHpDamage");
+                return false;
+            }
+            g_modZombieInited = true;
+            LOG_INFO("Mod SDK zombie ready (Zombie 尸潮击杀)");
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            LOG_ERROR("ModZombieInit exception 0x%08X", GetExceptionCode());
+            return false;
+        }
+    }
+
+    // 从 AgentManager.agentList 收集全部 Zombie 实例
+    static std::vector<void*> CollectZombies()
+    {
+        std::vector<void*> out;
+
+            BattleLogicWorld_o* world = (BattleLogicWorld_o*)GetSingletonInstance(g_klassBattleLogicWorld);
+            if (!world || !world->_AgentManager)
+                return out;
+            void* agentList = world->_AgentManager->_agentList;
+            size_t count = ListGetCount(agentList);
+            if (count > 512) count = 512;
+            for (size_t i = 0; i < count; ++i)
+            {
+                void* agent = ListGetItem(agentList, i);
+                if (!agent)
+                    continue;
+                if (g_IL2CPP->object_get_class((Il2CppObject*)agent) != g_klassZombie)
+                    continue;
+                out.push_back(agent);
+            }
+
+        return out;
+    }
+}
+
+int32_t SLSDK_GetZombies(SLZombieView* outItems, int32_t maxItems)
+{
+    if (!ModZombieInit())
+        return -1;
+    std::vector<void*> zs = CollectZombies();
+    int32_t total = (int32_t)zs.size();
+    if (outItems && maxItems > 0)
+    {
+        int32_t n = total < maxItems ? total : maxItems;
+        for (int32_t i = 0; i < n; ++i)
+        {
+            uint8_t* z = (uint8_t*)zs[i];
+            outItems[i].InstanceId = *(int64_t*)(z + OFF_ZOMBIE_InstanceId);
+            outItems[i].CurrentHP  = *(int32_t*)(z + OFF_ZOMBIE_CurrentHP);
+            outItems[i].MaxHP      = *(int32_t*)(z + OFF_ZOMBIE_MaxHP);
+        }
+    }
+    return total;
+}
+
+bool SLSDK_KillZombie(int64_t instanceId)
+{
+    if (!ModZombieInit())
+        return false;
+    if (g_domain && g_IL2CPP && g_IL2CPP->thread_attach)
+        g_IL2CPP->thread_attach(g_domain);
+    std::vector<void*> zs = CollectZombies();
+    for (size_t i = 0; i < zs.size(); ++i)
+    {
+        uint8_t* z = (uint8_t*)zs[i];
+        if (*(int64_t*)(z + OFF_ZOMBIE_InstanceId) == instanceId)
+            return InvokeIntArgOk(g_miZombieTakeHpDamage, z, 999999);
+    }
+    return false;
+}
+
+int32_t SLSDK_KillAllZombies()
+{
+    if (!ModZombieInit())
+        return -1;
+    if (g_domain && g_IL2CPP && g_IL2CPP->thread_attach)
+        g_IL2CPP->thread_attach(g_domain);
+    std::vector<void*> zs = CollectZombies();
+    int32_t killed = 0;
+    for (size_t i = 0; i < zs.size(); ++i)
+    {
+        if (InvokeIntArgOk(g_miZombieTakeHpDamage, zs[i], 999999))
+            ++killed;
+    }
+    return killed;
 }
 
 

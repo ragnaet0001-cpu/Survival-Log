@@ -224,6 +224,7 @@
     <ClCompile Include="Menu\Panel\Tabs\TabFacilities.cpp" />
     <ClCompile Include="Menu\Panel\Tabs\TabBuffs.cpp" />
     <ClCompile Include="Menu\Panel\Tabs\TabAbout.cpp" />
+    <ClCompile Include="Menu\Panel\Tabs\TabZombie.cpp" />
     <ClCompile Include="SDK\SurvivalLogSDK.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>

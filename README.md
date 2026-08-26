@@ -4,18 +4,19 @@ Survival Log（生存日志）游戏的修改器：**C++ 原生 DLL**（D3D11 Ho
 
 ---
 
-## 功能（9 个菜单 tab）
+## 功能（10 个菜单 tab）
 
 | Tab | 功能 |
 | --- | --- |
 | 准备阶段 | 金币显示/增加、游戏时间（天/时刻/总秒/倒计时）、延长倒计时、冻结时间 |
 | 物品 | 物品目录搜索（按名称/ID）、添加物品、数量设置 |
 | 背包 | 背包物品列表、删除/复制、设置数量、背包尺寸修改、最大负重、柜子/货架扩容（收纳架/置物架/冰箱白名单行数与负重倍率） |
-| 杂项 | 邻居好感、图鉴/成就解锁、暴露度、生存点、锁定移动、禁用游戏热键、无限食物保质期、动作速度倍率、烹饪时间倍率、暴露增长倍率 |
+| 杂项 | 邻居好感、图鉴/成就解锁、暴露度、生存点、锁定移动、禁用游戏热键、无限食物保质期、动作速度倍率、烹饪时间倍率、暴露增长倍率、发电量倍率、储电倍率 |
 | 属性 | 饱腹/心态/精力/生命/Health 当前值与上限、属性锁（每帧补满）、移速倍率 |
 | 熟练度 | 6 类熟练度查看、加经验、加等级 |
 | 设施 | 全部 10 种槽位类型（小/中/大/挂壁/中央/桌上/床/门/窗/塔防装置）耐久查看与设置、每行锁定（勾选后每帧保持耐久） |
 | Buff | 子 tab：当前效果 / 生存规划；当前效果 = Buff 列表/移除 + Buff 目录搜索/添加 + 清空全部/移除负面；生存规划 = 已激活列表/移除 + 目录（全量天赋 548 条）搜索/选中/手动添加 |
+| 丧尸 | 活体丧尸列表(ID/HP) + 每行单个击杀按钮 + 击杀全部丧尸按钮（调用 Zombie.TakeHpDamage(999999) 走正常死亡流程） |
 | 关于 | 关闭菜单 |
 
 > 菜单结构对齐 mod 前端（资源/生存/其他分组），无透视/自瞄等 mod 之外的功能。
@@ -29,6 +30,11 @@ Survival Log（生存日志）游戏的修改器：**C++ 原生 DLL**（D3D11 Ho
 > - 柜子/货架扩容（背包 tab）：hook ConfigManager.Get_Config_Bag，返回时按名字（收纳架/置物架/冰箱，中英文关键词）自动识别容器进白名单，行数×N + 负重×N 直写 Config_Bag（原始值记忆 per 对象、可还原，缓存上限防读档累积）；玩家背包不受影响（走原有尺寸/负重功能）；倍率默认 1 不启用，重开面板生效
 > - 无限食物：物品详情弹窗（ItemDetailPopup）保质期显示 ∞（hook Reducer_Web_ItemDetailPopup.SetShelfLifeParts，把 valueText 换成 ∞，点开物品不再显示真实倒计时）
 > - 无限食物崩溃修复：∞ 字符串用 il2cpp_gchandle_new 固定（C++ 全局裸指针不在 IL2CPP GC root 里，游戏更新后会被回收成悬垂，导致打开背包时 GetShelfLifeText 返回悬垂对象崩溃/物品不显示）
+>
+> 2026-08-26 电力倍率 + 丧尸击杀（批次8/9，参考 DexterSL_Extra.PowerManagerPatch / Zombie）：
+> - 杂项 tab：发电量倍率 / 储电倍率（PowerManager 三处 hook：InjectPower + CalculateGeneration 走发电倍率、CalculateCapacity 走储电倍率；SLSDK_SetPowerMultiplier(gen,cap)，倍率 0.1~200，setter 自动装 hook；字段 CurPowerValue+0x34 / MaxPowerValue+0x38 / TotalCapacity+0x40 / TotalGeneration+0x44，BattleLogicWorld._PowerManager+0x188）
+> - 丧尸 tab：列出活体丧尸（遍历 AgentManager.agentList 按 Zombie 类过滤）+ 每行击杀按钮 + 击杀全部按钮；击杀走 Zombie.TakeHpDamage(999999)；枚举备用路径 TowerWaveManager.GetAliveZombieIds()（dump.cs L305863）
+> - 菜单顺序：丧尸 tab 在「关于」之前；「关于」必须是最后一项，不可移动
 
 
 ---
@@ -41,7 +47,7 @@ SurvivalLog/
 ├── Hook/            Detours Hook 层（HookManager：背包尺寸/无限食物/时间冻结/柜子扩容等 20+ 个 hook）
 ├── Menu/Panel/      菜单面板
 │   ├── panel.cpp    框架（窗口/侧边栏/分发 + PanelFrameUpdate 每帧系统逻辑 + PanelUpdateLocks 锁定生效）
-│   └── Tabs/        9 个 tab 独立文件（TabXxx.cpp，对齐原神项目 Gui 风格）
+│   └── Tabs/        10 个 tab 独立文件（TabXxx.cpp，对齐原神项目 Gui 风格）
 └── SDK/             il2cpp 运行时封装
     ├── SurvivalLogSDK.h/.cpp  按名解析类/方法 + 全部功能 API
     ├── offsets.h              全免更偏移集中表（运行时动态解析填充）
