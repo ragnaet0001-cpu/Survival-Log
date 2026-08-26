@@ -4359,6 +4359,11 @@ bool SLSDK_InstallHooks()
             pCountUpCostTime, pGameTimeUpdate, pSendAction, pGetConfigBag);
         return false;
     }
+
+	LOG_DEBUG("Installing hooks: bag=%p rot=%p gtmCost=%p cdCost=%p cuCost=%p upd=%p send=%p cfgBag=%p",
+		pGetOwnerBagSize, pCheckAndProcessRot, pGameTimeCostTime, pCountDownCostTime,
+		pCountUpCostTime, pGameTimeUpdate, pSendAction, pGetConfigBag);
+
     HookManager::HookFunction(pGetOwnerBagSize, Hook_GetOwnerBagSize);
     HookManager::HookFunction(pCheckAndProcessRot, Hook_CheckAndProcessRot);
     HookManager::HookFunction(pGameTimeCostTime, Hook_GameTimeCostTime);
@@ -4367,8 +4372,10 @@ bool SLSDK_InstallHooks()
     HookManager::HookFunction(pGameTimeUpdate, Hook_GameTimeUpdate);
     HookManager::HookFunction(pSendAction, Hook_SendAction);
     HookManager::HookFunction(pGetConfigBag, Hook_GetConfigBag);
-
+   
     SLSDK_InstallFoodDisplayHooks();
+
+    g_hooksInstalled = true;
     return g_hooksInstalled;
 }
 
