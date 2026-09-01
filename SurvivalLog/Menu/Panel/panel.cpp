@@ -1,38 +1,38 @@
-﻿#include "panel.h"
+#include "panel.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <cstdint>
 #include "../../SDK/SurvivalLogSDK.h"
 
-// ---------- 全局锁定状态（tab 勾选只改状态；RenderPanel 每帧调用 PanelUpdateLocks 统一生效） ----------
+// ---------- Global lock state (tab checkboxes only change state; PanelUpdateLocks called each frame in RenderPanel for unified effect) ----------
 bool g_lock_hp = false, g_lock_sta = false, g_lock_sat = false, g_lock_mor = false;
-bool g_lock_dur_slots[10] = {}; // 槽位类型锁（下标 0=id1 小 ... 9=id10 塔防装置）
+bool g_lock_dur_slots[10] = {}; // Slot type locks (index 0=id1 small ... 9=id10 tower defense device)
 int32_t g_lock_dur_value = 10000;
 
-// 每帧统一生效的锁定（对齐 mod CheatGUI.Update：锁定不依赖当前打开的 tab）
+// Unified lock application each frame (aligned with mod CheatGUI.Update: locks don't depend on currently open tab)
 void PanelUpdateLocks()
 {
-    // 属性锁（mod ApplyAttrLocks：每帧补满；全关时内部直接返回）
+    // Attribute locks (mod ApplyAttrLocks: replenish each frame; internally returns directly when all disabled)
     if (g_lock_hp || g_lock_sta || g_lock_sat || g_lock_mor)
         SLSDK_ApplyAttrLocks(g_lock_hp, g_lock_sta, g_lock_sat, g_lock_mor);
-    // 设施耐久锁（各槽位类型每帧保持；TabFacilities 勾选只改状态，对齐属性锁）
+    // Facility durability locks (each slot type maintained each frame; TabFacilities checkbox only changes state, aligned with attribute locks)
     for (int i = 0; i < 10; i++)
     {
         if (g_lock_dur_slots[i])
             SLSDK_ApplyDurabilityLockSlot(i + 1, g_lock_dur_value);
     }
-    // 防暴露每帧清零（开关由 TabMisc -> SLSDK_SetNoExploreExposure 维护，内部读 SDK 全局开关）
+    // Anti-exploration exposure reset each frame (switch maintained by TabMisc -> SLSDK_SetNoExploreExposure, internally reads SDK global switch)
     SLSDK_ApplyNoExploreExposure();
-    // 冻结每帧保持（开关由 TabPrepare -> SLSDK_SetTimeFrozen 维护，内部读 SDK 全局 FrozenOverride）
+    // Time freeze maintained each frame (switch maintained by TabPrepare -> SLSDK_SetTimeFrozen, internally reads SDK global FrozenOverride)
     SLSDK_ApplyFrozenOverride();
-    // dexter.sl 倍率类每帧保持（开关由各 tab 设置，内部判断 on/off；对齐 mod CheatGUI.Update）
-    // 注意：动作速度不走每帧（游戏进行中动作把 During 当倒计时递减，每帧覆盖会卡动作；
-    //       由 Hook_GetConfigAction 对新动作自动应用）
+    // dexter.sl multiplier types maintained each frame (switch set by each tab, internally checks on/off; aligned with mod CheatGUI.Update)
+    // Note: action speed doesn't use per-frame application (during gameplay, action treats During as countdown decrement; per-frame override would stutter actions;
+    //       automatically applied to new actions via Hook_GetConfigAction)
     SLSDK_ApplyExposureRate();
 }
 
-// 原神项目同款样式设置（SetStyle）
+// Style setup from Genshin Impact project (SetStyle)
 static void SetStyle()
 {
     auto &styles = ImGui::GetStyle();
@@ -44,7 +44,7 @@ static void SetStyle()
     styles.ChildBorderSize = 1.0;
     styles.ChildRounding = 5.0;
     styles.CircleTessellationMaxError = 0.3f;
-    styles.ColorButtonPosition = ImGuiDir_Right; // 原值 1，新版是 ImGuiDir 枚举
+    styles.ColorButtonPosition = ImGuiDir_Right; // Original value 1, new version is ImGuiDir enum
     styles.ColumnsMinSpacing = 6.0;
     styles.CurveTessellationTol = 1.25;
     styles.DisabledAlpha = 0.6f;
@@ -69,20 +69,20 @@ static void SetStyle()
     styles.TabRounding = 4.0;
     styles.TouchExtraPadding = ImVec2(0.0, 0.0);
     styles.WindowBorderSize = 1.0;
-    styles.WindowMenuButtonPosition = ImGuiDir_Left; // 原值 0，新版是 ImGuiDir 枚举
+    styles.WindowMenuButtonPosition = ImGuiDir_Left; // Original value 0, new version is ImGuiDir enum
     styles.WindowMinSize = ImVec2(32.0, 32.0);
     styles.WindowPadding = ImVec2(8.0, 8.0);
     styles.WindowRounding = 7.0f;
     styles.WindowTitleAlign = ImVec2(0.5, 0.5);
 }
 
-// 每帧无条件执行的系统逻辑（SDK 延迟初始化 + hook 安装 + 锁定生效）。
-// 与菜单显隐无关：d3d11hook Present_Hook 每帧调用（菜单隐藏时 RenderPanel 不执行，但这里必须跑）
+// System logic executed unconditionally each frame (SDK lazy initialization + hook installation + lock application).
+// Independent of menu visibility: D3D11Hook Present_Hook calls this each frame (RenderPanel doesn't execute when menu is hidden, but this must run)
 void PanelFrameUpdate()
 {
-    // 渲染线程 attach 到 il2cpp domain（幂等）：未 attach 线程在游戏 GC 期间调托管 API 会偶发崩溃
+    // Attach render thread to il2cpp domain (idempotent): unattached threads can occasionally crash when calling managed APIs during game GC
     SLSDK_EnsureThreadAttached();
-    // SDK 延迟初始化：游戏启动早期 HotUpdate.dll 未加载，每 2 秒重试
+    // SDK lazy initialization: HotUpdate.dll not loaded during early game startup, retry every 2 seconds
     static ULONGLONG s_last_sdk_try = 0;
     if (!SLSDK_Ready())
     {
@@ -95,21 +95,21 @@ void PanelFrameUpdate()
     }
     else
     {
-        // SDK 就绪后安装 Detours hook（无限食物/时间冻结/背包尺寸等，幂等）
+        // Install Detours hooks after SDK is ready (infinite food/time freeze/backpack size, etc.; idempotent)
         SLSDK_InstallHooks();
-        // 批次6 hook（烹饪时间/暴露事件，幂等；dexter.sl 功能）
+        // Batch 6 hooks (cooking time/exposure events, idempotent; dexter.sl features)
         SLSDK_InstallBatch6Hooks();
-        // 批次8 hook（发电量/储电倍率，幂等；mod PowerManagerPatch）
+        // Batch 8 hooks (power generation/power storage multiplier, idempotent; mod PowerManagerPatch)
         SLSDK_InstallPowerHooks();
     }
 
-    // 锁定类功能每帧统一生效（与当前打开的 tab 无关，对齐 mod CheatGUI.Update）
+    // Lock features applied uniformly each frame (independent of currently open tab, aligned with mod CheatGUI.Update)
     PanelUpdateLocks();
 }
 
 void RenderPanel()
 {
-    // 原神同款：样式只设置一次
+    // Genshin Impact style: set style only once
     static bool is_style_set = false;
     if (!is_style_set)
     {
@@ -119,7 +119,7 @@ void RenderPanel()
 
     ImGui::SetNextWindowBgAlpha(1.0f);
     ImGui::SetNextWindowSize(ImVec2(620, 440), ImGuiCond_FirstUseEver);
-    ImGui::Begin((const char *)u8"SurvivalLog", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNav);
+    ImGui::Begin("SurvivalLog", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNav);
 
     auto Windowpos = ImGui::GetWindowPos();
     auto Windowsize = ImGui::GetWindowSize();
@@ -132,20 +132,20 @@ void RenderPanel()
     auto Color = Style.Colors;
     float MenuButtonHeight = 30.0f;
     static std::vector<std::string> MenuType = {
-        // mod MenuType 同款（9 tab，无透视/自瞄）：资源=准备阶段/物品/背包/杂项；生存=属性/熟练度/设施/Buff；其他=关于
-        (const char *)u8"准备阶段",
-        (const char *)u8"物品",
-        (const char *)u8"背包",
-        (const char *)u8"杂项",
-        (const char *)u8"属性",
-        (const char *)u8"熟练度",
-        (const char *)u8"设施",
-        (const char *)u8"Buff",
-        (const char *)u8"丧尸",
-        (const char*)u8"关于",
+        // Same as mod MenuType (9 tabs, no wallhack/aimbot): Resources = Preparation/Items/Backpack/Misc; Survival = Attributes/Proficiency/Facilities/Buffs; Other = About
+        "Preparation",
+        "Items",
+        "Backpack",
+        "Miscellaneous",
+        "Attributes",
+        "Proficiency",
+        "Facilities",
+        "Buffs",
+        "Zombies",
+        "About",
     };
 
-    ImGui::BeginChild((const char *)u8"SurvivalLog_Button", {150.0f, Windowsize.y - 40.0f}, true);
+    ImGui::BeginChild("SurvivalLog_Button", {150.0f, Windowsize.y - 40.0f}, true);
     {
         for (int i = 0; i < (int)MenuType.size(); ++i)
         {
@@ -166,18 +166,18 @@ void RenderPanel()
     ImGui::EndChild();
 
     ImGui::NextColumn();
-    // 内容区分发：对齐原神项目 CheatManagerBase::DrawTabFeatures 风格（tab 名 -> 独立模块函数）
+    // Content area dispatcher: aligned with Genshin Impact project CheatManagerBase::DrawTabFeatures style (tab name -> independent module function)
     static void (*const kTabRenderers[])(void) = {
-        TabPrepare,     // 0 准备阶段（金币 + 时间）
-        TabItems,       // 1 物品
-        TabBag,         // 2 背包
-        TabMisc,        // 3 杂项
-        TabAttributes,  // 4 属性
-        TabProficiency, // 5 熟练度
-        TabFacilities,  // 6 设施
-        TabBuffs,       // 7 Buff
-        TabZombie,      // 8 丧尸
-        TabAbout,       // 9 关于
+        TabPrepare,     // 0 Preparation (coins + time)
+        TabItems,       // 1 Items
+        TabBag,         // 2 Backpack
+        TabMisc,        // 3 Miscellaneous
+        TabAttributes,  // 4 Attributes
+        TabProficiency, // 5 Proficiency
+        TabFacilities,  // 6 Facilities
+        TabBuffs,       // 7 Buffs
+        TabZombie,      // 8 Zombies
+        TabAbout,       // 9 About
     };
 
     ImGui::BeginChild("##SurvivalLog_Content", {Windowsize.x - 180.0f, Windowsize.y - 40.0f}, true);
