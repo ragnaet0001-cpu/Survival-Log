@@ -1,4 +1,4 @@
-﻿#include "SurvivalLogSDK.h"
+#include "SurvivalLogSDK.h"
 #include "offsets.h"
 #include "../DXhook/dev/logger.h"
 #include <string.h>
@@ -1532,8 +1532,6 @@ int32_t SLSDK_RefreshItemCatalog()
             info.Price = cfg->price;
             info.Weight = cfg->weight;
             char tmp[512];
-            ILStringToUtf8(cfg->ItemName_Local, tmp, sizeof(tmp));
-            if (!tmp[0])
                 ILStringToUtf8(cfg->ItemName, tmp, sizeof(tmp));
             if (!tmp[0])
                 snprintf(tmp, sizeof(tmp), "#%d", cfg->ID);
@@ -1773,7 +1771,7 @@ bool SLSDK_ResetMoveSpeed()
 }
 
 // ============================================================
-// 批次2：Buff / 生存规划 / 熟练度 / 关系 / 图鉴成就 / 暴露生存点移动热键 / 时间
+// 批次2：Buff / Survival planning / 熟练度 / 关系 / 图鉴成就 / 暴露生存点移动热键 / 时间
 // 全部通过 GetLeadingRoleComponent 拿组件 + 按名解析方法，失败降级不崩
 // ============================================================
 
@@ -2017,7 +2015,7 @@ namespace
         return nullptr;
     }
 
-    // 生存规划操作失败原因诊断（AddSurvivalPlan/RemoveSurvivalPlan 失败时填充）
+    // Survival planning操作失败原因诊断（AddSurvivalPlan/RemoveSurvivalPlan 失败时填充）
     static char g_planError[256] = {};
     static const char* g_planStep = "";
 
@@ -2241,8 +2239,6 @@ static void BuffName(void* config, char* buf, size_t len, int32_t cfgId)
     if (cb)
     {
         char tmp[512];
-        ILStringToUtf8(cb->Name_Local, tmp, sizeof(tmp));
-        if (!tmp[0])
             ILStringToUtf8(cb->Name, tmp, sizeof(tmp));
         if (tmp[0])
         {
@@ -2258,7 +2254,7 @@ static void BuffName(void* config, char* buf, size_t len, int32_t cfgId)
     snprintf(buf, len, "Buff #%d", cfgId);
 }
 
-// 生存规划：已激活 id 集合（用于 Buff 移除跳过）
+// Survival planning：已激活 id 集合（用于 Buff 移除跳过）
 static bool PlanIdInSaveCache(int32_t talentId)
 {
     __try
@@ -2321,14 +2317,14 @@ static Config_Talent_o* FindTalentConfig(int32_t talentId)
     }
 }
 
-// 生存规划 talent 对应的 BuffId（0 = 无）
+// Survival planning talent 对应的 BuffId（0 = 无）
 static int32_t TalentBuffId(int32_t talentId)
 {
     Config_Talent_o* cfg = FindTalentConfig(talentId);
     return cfg ? cfg->BuffID : 0;
 }
 
-// 生存规划 id 列表 -> 是否包含 configId（buff configId 匹配）
+// Survival planning id 列表 -> 是否包含 configId（buff configId 匹配）
 static bool ActivePlanHasBuffId(int32_t buffConfigId)
 {
     __try
@@ -2528,7 +2524,7 @@ bool SLSDK_RemoveBuffByConfig(int32_t configId)
         return false;
     __try
     {
-        // 生存规划来源 -> 移除生存规划
+        // Survival planning来源 -> 移除Survival planning
         if (ActivePlanHasBuffId(configId))
         {
             SurvivalPlanningComponent_o* sp = (SurvivalPlanningComponent_o*)GetComp(g_klassSurvivalPlanning);
@@ -2597,7 +2593,7 @@ bool SLSDK_ClearAllBuffs()
         {
             int32_t cfgId = IntListGet(ids, i, -1);
             if (cfgId <= 0 || ActivePlanHasBuffId(cfgId))
-                continue; // 跳过生存规划
+                continue; // 跳过Survival planning
             void* p[1] = { &cfgId };
             if (!InvokeOk(g_miBuffRemoveByConfig, buff, p))
                 all = false;
@@ -2654,7 +2650,7 @@ int32_t SLSDK_RemoveAllNegativeBuffs()
     return removed;
 }
 
-// ---------- 生存规划 ----------
+// ---------- Survival planning ----------
 int32_t SLSDK_GetSurvivalPlans(SLSurvivalPlanView* outItems, int32_t maxItems)
 {
     if (!ModBatch2Init())
@@ -2679,18 +2675,14 @@ int32_t SLSDK_GetSurvivalPlans(SLSurvivalPlanView* outItems, int32_t maxItems)
                 v.Level = cfg ? cfg->Lv : 0;
                 v.Active = true;
                 char tmp[512];
-                ILStringToUtf8(cfg ? cfg->Name_Local : nullptr, tmp, sizeof(tmp));
-                if (!tmp[0])
                     ILStringToUtf8(cfg ? cfg->Name : nullptr, tmp, sizeof(tmp));
                 if (!tmp[0])
-                    snprintf(tmp, sizeof(tmp), "生存规划 #%d", tid);
+                    snprintf(tmp, sizeof(tmp), "Survival planning #%d", tid);
                 size_t n2 = strlen(tmp);
                 if (n2 >= sizeof(v.Name))
                     n2 = sizeof(v.Name) - 1;
                 memcpy(v.Name, tmp, n2);
                 v.Name[n2] = 0;
-                ILStringToUtf8(cfg ? cfg->Dec_Local : nullptr, tmp, sizeof(tmp));
-                if (!tmp[0])
                     ILStringToUtf8(cfg ? cfg->Dec : nullptr, tmp, sizeof(tmp));
                 n2 = strlen(tmp);
                 if (n2 >= sizeof(v.Description))
@@ -2718,7 +2710,7 @@ int32_t SLSDK_GetSurvivalPlanCatalog(SLSurvivalPlanView* outItems, int32_t maxIt
         SurvivalPlanningComponent_o* sp = (SurvivalPlanningComponent_o*)GetComp(g_klassSurvivalPlanning);
         if (!cm)
             return 0;
-        // 全量天赋字典直读（和 Buff 目录遍历 _Config_Buff_Dict 对称；mod 目录语义 = 列出全部可添加生存规划）
+        // 全量天赋字典直读（和 Buff 目录遍历 _Config_Buff_Dict 对称；mod 目录语义 = 列出全部可添加Survival planning）
         void* dict = *(void**)((uint8_t*)cm + OFF_CM_TalentDict); // ConfigManager._Config_Talent_Dict
         if (!dict)
             return 0;
@@ -2742,18 +2734,14 @@ int32_t SLSDK_GetSurvivalPlanCatalog(SLSurvivalPlanView* outItems, int32_t maxIt
                 v.Level = cfg->Lv;
                 v.Active = sp && sp->SaveCache ? PlanIdInSaveCache(tid) : false;
                 char tmp[512];
-                ILStringToUtf8(cfg->Name_Local, tmp, sizeof(tmp));
-                if (!tmp[0])
                     ILStringToUtf8(cfg->Name, tmp, sizeof(tmp));
                 if (!tmp[0])
-                    snprintf(tmp, sizeof(tmp), "生存规划 #%d", tid);
+                    snprintf(tmp, sizeof(tmp), "Survival planning #%d", tid);
                 size_t n2 = strlen(tmp);
                 if (n2 >= sizeof(v.Name))
                     n2 = sizeof(v.Name) - 1;
                 memcpy(v.Name, tmp, n2);
                 v.Name[n2] = 0;
-                ILStringToUtf8(cfg->Dec_Local, tmp, sizeof(tmp));
-                if (!tmp[0])
                     ILStringToUtf8(cfg->Dec, tmp, sizeof(tmp));
                 n2 = strlen(tmp);
                 if (n2 >= sizeof(v.Description))
@@ -2847,7 +2835,7 @@ bool SLSDK_AddSurvivalPlan(int32_t talentId)
     }
 }
 
-// 上次生存规划操作失败原因
+// 上次Survival planning操作失败原因
 const char* SLSDK_GetLastPlanError()
 {
     return g_planError;
@@ -3708,7 +3696,6 @@ namespace
             char nameBuf[256] = { 0 };
             char nameBuf2[256] = { 0 };
             ILStringToUtf8(bag->Name, nameBuf, sizeof(nameBuf));
-            ILStringToUtf8(bag->Name_Local, nameBuf2, sizeof(nameBuf2));
             if (!IsContainerName(nameBuf) && !IsContainerName(nameBuf2))
                 return;
             if (bag->ID > 0)
