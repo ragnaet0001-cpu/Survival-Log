@@ -1,14 +1,14 @@
-﻿#include "../../../SDK/SurvivalLogSDK.h"
+#include "../../../SDK/SurvivalLogSDK.h"
 #include "../panel.h"
 
-// ---------- 熟练度（mod proficiency） ----------
+// ---------- Proficiency (mod proficiency) ----------
 void TabProficiency()
 {
             ImGui::Separator();
-            // 熟练度（一行一个，各自带加经验/加1级）
+            // Proficiency (one row per skill, each with add-exp / add-1-level)
             static SLProficiencyView profs[6];
             int npf = SLSDK_GetProficiencies(profs, 6);
-            // 名称由 SDK 兜底（SystemName 空时填枚举名）
+            // Name falls back via SDK (fills in the enum name when SystemName is empty)
             static int prof_exp[6] = { 100, 100, 100, 100, 100, 100 };
             for (int i = 0; i < npf && i < 6; ++i)
             {
@@ -17,8 +17,8 @@ void TabProficiency()
                 ImGui::SetNextItemWidth(110);
                 char pe_label[24], exp_btn[32], lv_btn[32];
                 snprintf(pe_label, sizeof(pe_label), (const char *)u8"##pe%d", i);
-                snprintf(exp_btn, sizeof(exp_btn), (const char *)u8"加经验##%d", i);
-                snprintf(lv_btn, sizeof(lv_btn), (const char *)u8"加1级##%d", i);
+                snprintf(exp_btn, sizeof(exp_btn), (const char *)u8"Add Exp##%d", i);
+                snprintf(lv_btn, sizeof(lv_btn), (const char *)u8"Add 1 Level##%d", i);
                 ImGui::InputInt(pe_label, &prof_exp[i]);
                 ImGui::SameLine();
                 if (ImGui::SmallButton(exp_btn))
@@ -31,6 +31,6 @@ void TabProficiency()
                 }
             }
             if (npf <= 0)
-                ImGui::Text((const char *)u8"熟练度数据不可用（请先进入游戏存档）");
+                ImGui::Text((const char *)u8"Proficiency data unavailable (please load a save first)");
             return;
 }
