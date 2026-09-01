@@ -1,41 +1,41 @@
-﻿#include "../../../SDK/SurvivalLogSDK.h"
+#include "../../../SDK/SurvivalLogSDK.h"
 #include "../panel.h"
 
-// ---------- Buff（mod buffs：当前效果 / 生存规划 子 tab） ----------
+// ---------- Buffs (mod buffs: Current Effects / Survival Planning sub-tabs) ----------
 void TabBuffs()
 {
-            // ---------- Buff（mod GameApi.Buff 系列：子 tab 对齐 mod buff-subnav） ----------
-            ImGui::Text((const char *)u8"Buff");
+            // ---------- Buffs (mod GameApi.Buff series: sub-tabs matching mod buff-subnav) ----------
+            ImGui::Text((const char *)u8"Buffs");
             ImGui::Separator();
             if (!SLSDK_Ready())
             {
-                ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), (const char *)u8"SDK 未就绪（等待游戏加载）...");
+                ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), (const char *)u8"SDK not ready (waiting for game to load)...");
                 return;
             }
 
-            // 子 tab：当前效果 / 生存规划（mod buffView: current / planning）
+            // Sub-tabs: Current Effects / Survival Planning (mod buffView: current / planning)
             static int buff_sub = 0;
             ImGuiStyle &Style = ImGui::GetStyle();
             auto Color = Style.Colors;
             ImVec4 subColor0 = buff_sub == 0 ? Color[ImGuiCol_Button] : ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
             ImGui::PushStyleColor(ImGuiCol_Button, subColor0);
-            if (ImGui::Button((const char *)u8"当前效果", ImVec2(110, 0)))
+            if (ImGui::Button((const char *)u8"Current Effects", ImVec2(110, 0)))
                 buff_sub = 0;
             ImGui::PopStyleColor();
             ImGui::SameLine();
             ImVec4 subColor1 = buff_sub == 1 ? Color[ImGuiCol_Button] : ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
             ImGui::PushStyleColor(ImGuiCol_Button, subColor1);
-            if (ImGui::Button((const char *)u8"生存规划", ImVec2(110, 0)))
+            if (ImGui::Button((const char *)u8"Survival Planning", ImVec2(110, 0)))
                 buff_sub = 1;
             ImGui::PopStyleColor();
             ImGui::Separator();
 
             if (buff_sub == 0)
             {
-                // ---------- 当前效果：当前 Buff 列表 ----------
+                // ---------- Current Effects: current buff list ----------
                 static SLBuffView buffs[64];
                 int nb = SLSDK_GetBuffs(buffs, 64);
-                ImGui::Text((const char *)u8"当前 Buff: %d 个", nb);
+                ImGui::Text((const char *)u8"Active buffs: %d", nb);
                 if (ImGui::BeginChild((const char *)u8"##bufflist", ImVec2(0, 150), true))
                 {
                     for (int i = 0; i < nb && i < 64; ++i)
@@ -44,7 +44,7 @@ void TabBuffs()
                         snprintf(line, sizeof(line), (const char *)u8"%s x%d (id=%lld)", buffs[i].Name, buffs[i].Layers, (long long)buffs[i].InstanceId);
                         ImGui::Text("%s", line);
                         char b1[32];
-                        snprintf(b1, sizeof(b1), (const char *)u8"移除##%d", i);
+                        snprintf(b1, sizeof(b1), (const char *)u8"Remove##%d", i);
                         ImGui::SameLine();
                         if (ImGui::SmallButton(b1))
                         {
@@ -58,7 +58,7 @@ void TabBuffs()
                 ImGui::EndChild();
                 ImGui::Separator();
 
-                // 添加 Buff：配置目录搜索选择
+                // Add buff: search + select from config catalog
                 static bool bcat_loaded = false;
                 static int bcat_count = 0;
                 static std::vector<SLBuffConfigView> bcat;
@@ -72,7 +72,7 @@ void TabBuffs()
                         bcat_loaded = true;
                     }
                 }
-                if (ImGui::Button((const char *)u8"刷新Buff目录"))
+                if (ImGui::Button((const char *)u8"Refresh Buff Catalog"))
                 {
                     bcat_count = SLSDK_GetBuffConfigs(nullptr, 0);
                     bcat.resize(bcat_count > 0 ? (size_t)bcat_count : 0);
@@ -81,10 +81,10 @@ void TabBuffs()
                     bcat_loaded = bcat_count > 0;
                 }
                 ImGui::SameLine();
-                ImGui::Text((const char *)u8"Buff 目录: %d 种", bcat_count);
+                ImGui::Text((const char *)u8"Buff catalog: %d types", bcat_count);
                 static char bsearch[64] = {};
                 ImGui::SetNextItemWidth(200);
-                ImGui::InputText((const char *)u8"搜索Buff", bsearch, sizeof(bsearch));
+                ImGui::InputText((const char *)u8"Search Buff", bsearch, sizeof(bsearch));
                 static int bsel_id = 0;
                 static char bsel_name[96] = {};
                 if (bcat_loaded && bcat_count > 0)
@@ -109,20 +109,20 @@ void TabBuffs()
                     }
                     ImGui::EndChild();
                 }
-                ImGui::Text((const char *)u8"选中: #%d %s", bsel_id, bsel_name);
-                if (ImGui::Button((const char *)u8"添加选中Buff"))
+                ImGui::Text((const char *)u8"Selected: #%d %s", bsel_id, bsel_name);
+                if (ImGui::Button((const char *)u8"Add Selected Buff"))
                     SLSDK_AddBuff(bsel_id);
                 ImGui::SameLine();
-                if (ImGui::Button((const char *)u8"清空所有Buff"))
+                if (ImGui::Button((const char *)u8"Clear All Buffs"))
                     SLSDK_ClearAllBuffs();
                 ImGui::SameLine();
-                if (ImGui::Button((const char *)u8"移除负面Buff"))
+                if (ImGui::Button((const char *)u8"Remove Negative Buffs"))
                     SLSDK_RemoveAllNegativeBuffs();
             }
             else
             {
-                // ---------- 生存规划：已激活列表 ----------
-                ImGui::Text((const char *)u8"生存规划（已激活）");
+                // ---------- Survival Planning: active list ----------
+                ImGui::Text((const char *)u8"Survival Planning (Active)");
                 static SLSurvivalPlanView plans[32];
                 int np = SLSDK_GetSurvivalPlans(plans, 32);
                 if (ImGui::BeginChild((const char *)u8"##plans", ImVec2(0, 90), true))
@@ -133,7 +133,7 @@ void TabBuffs()
                         snprintf(line, sizeof(line), (const char *)u8"#%d %s (Lv%d)", plans[i].TalentId, plans[i].Name, plans[i].Level);
                         ImGui::Text("%s", line);
                         char b1[32];
-                        snprintf(b1, sizeof(b1), (const char *)u8"移除##p%d", i);
+                        snprintf(b1, sizeof(b1), (const char *)u8"Remove##p%d", i);
                         ImGui::SameLine();
                         if (ImGui::SmallButton(b1))
                             SLSDK_RemoveSurvivalPlan(plans[i].TalentId);
@@ -142,7 +142,7 @@ void TabBuffs()
                 ImGui::EndChild();
                 ImGui::Separator();
 
-                // 生存规划目录（mod survivalPlanCatalog：列表手动添加）
+                // Survival planning catalog (mod survivalPlanCatalog: list + manual add)
                 static bool pcat_loaded = false;
                 static std::vector<SLSurvivalPlanView> pcat;
                 if (!pcat_loaded)
@@ -155,7 +155,7 @@ void TabBuffs()
                         pcat_loaded = true;
                     }
                 }
-                if (ImGui::Button((const char *)u8"刷新规划目录"))
+                if (ImGui::Button((const char *)u8"Refresh Plan Catalog"))
                 {
                     int npc = SLSDK_GetSurvivalPlanCatalog(nullptr, 0);
                     pcat.resize(npc > 0 ? (size_t)npc : 0);
@@ -164,12 +164,12 @@ void TabBuffs()
                     pcat_loaded = npc > 0;
                 }
                 ImGui::SameLine();
-                ImGui::Text((const char *)u8"生存规划目录: %d 种", (int)pcat.size());
+                ImGui::Text((const char *)u8"Survival planning catalog: %d types", (int)pcat.size());
                 static char psearch[64] = {};
                 static int psel_id = 0;
                 static char psel_name[96] = {};
                 ImGui::SetNextItemWidth(200);
-                ImGui::InputText((const char *)u8"搜索规划", psearch, sizeof(psearch));
+                ImGui::InputText((const char *)u8"Search Plan", psearch, sizeof(psearch));
                 if (pcat_loaded && !pcat.empty())
                 {
                     if (ImGui::BeginChild((const char *)u8"##plancat", ImVec2(0, 110), true))
@@ -181,7 +181,7 @@ void TabBuffs()
                             if (psearch[0] && !strstr(pcat[i].Name, psearch) && pcat[i].TalentId != pid)
                                 continue;
                             char label[256];
-                            snprintf(label, sizeof(label), (const char *)u8"#%d %s %s##pc%d", pcat[i].TalentId, pcat[i].Name, pcat[i].Active ? (const char *)u8"[已激活]" : (const char *)u8"[可添加]", (int)i);
+                            snprintf(label, sizeof(label), (const char *)u8"#%d %s %s##pc%d", pcat[i].TalentId, pcat[i].Name, pcat[i].Active ? (const char *)u8"[Active]" : (const char *)u8"[Available]", (int)i);
                             if (ImGui::Selectable(label, psel_id == pcat[i].TalentId))
                             {
                                 psel_id = pcat[i].TalentId;
@@ -192,10 +192,10 @@ void TabBuffs()
                     }
                     ImGui::EndChild();
                 }
-                ImGui::Text((const char *)u8"选中: #%d %s", psel_id, psel_name);
+                ImGui::Text((const char *)u8"Selected: #%d %s", psel_id, psel_name);
                 static bool p_add_ok = false;
                 static bool p_add_tried = false;
-                if (ImGui::Button((const char *)u8"添加选中规划"))
+                if (ImGui::Button((const char *)u8"Add Selected Plan"))
                 {
                     p_add_ok = SLSDK_AddSurvivalPlan(psel_id);
                     p_add_tried = true;
@@ -206,13 +206,13 @@ void TabBuffs()
                     const char* perr = SLSDK_GetLastPlanError();
                     if (p_add_ok)
                     {
-                        ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), (const char *)u8"添加成功");
+                        ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), (const char *)u8"Added successfully");
                         p_add_tried = false;
                     }
                     else if (perr && perr[0])
-                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.2f, 1.0f), (const char *)u8"失败: %s", perr);
+                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.2f, 1.0f), (const char *)u8"Failed: %s", perr);
                     else
-                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.2f, 1.0f), (const char *)u8"添加失败");
+                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.2f, 1.0f), (const char *)u8"Add failed");
                 }
             }
             return;
